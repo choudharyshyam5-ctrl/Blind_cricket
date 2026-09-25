@@ -1,980 +1,153 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blind Cricket Pro Ultimate</title>
-<meta name="description" content="A fully accessible cricket game for blind and low-vision players, with spoken commentary, text-to-speech, and keyboard-friendly controls.">
 <style>
-
-*{box-sizing:border-box}
-body{margin:0;background:#07111f;color:#fff;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-.wrap{max-width:1100px;margin:auto;padding:18px 18px 60px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:#07111f;padding:10px 0;z-index:5}
-.brand{font-size:22px;font-weight:900}
-.brand small{display:block;font-size:12px;font-weight:500;color:#aebbd0}
-.wallet{padding:10px 15px;border-radius:20px;background:#1a304c;color:#ffd166;font-weight:900;white-space:nowrap}
-.screen,.card{background:#102038;border:1px solid #2c4868;border-radius:18px;padding:20px}
-.screen{margin-top:14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
-.grid.tight{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
-.nav,.row{display:flex;gap:8px;flex-wrap:wrap}
-.menu button{width:100%;min-height:72px;text-align:left;font-size:18px}
-button{border:0;border-radius:11px;padding:13px 16px;background:#32d583;color:#06130c;font-weight:800;cursor:pointer;font-size:15px}
-button.secondary{background:#1b304b;color:#fff;border:1px solid #3a5878}
-button.danger{background:#ff6374;color:#fff}
-button.ghost{background:transparent;color:#8fd6ff;border:1px solid #2c4868}
-button:disabled{opacity:.4;cursor:not-allowed}
-button:hover:not(:disabled){filter:brightness(1.08)}
-.stat{font-size:30px;font-weight:900}
-.muted{color:#aebbd0}
-.small{font-size:13px}
-.form{display:grid;gap:12px;max-width:520px}
-.form input,.form select{padding:13px;border-radius:10px;border:1px solid #385675;background:#091625;color:#fff;font-size:15px;width:100%}
-.notice{padding:12px 14px;margin:12px 0;border-radius:10px;background:#18314d;border-left:4px solid #63a4ff}
-.notice.err{border-left-color:#ff6374;background:#3a1620}
-.notice.ok{border-left-color:#32d583;background:#13301f}
-.bar{height:14px;background:#263d59;border-radius:10px;overflow:hidden}
-.bar i{display:block;height:100%;background:#32d583;transition:width .3s}
-.bar.dur i{background:#ffd166}
-.bar.dur.low i{background:#ff6374}
-.commentary{min-height:110px;background:#071522;border:1px solid #2c4868;border-radius:12px;padding:16px;line-height:1.7;font-size:17px}
-.shots,.deliveries{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.shots button,.deliveries button{min-height:64px;font-size:15px}
-.log{max-height:320px;overflow:auto}
-.tag{background:#203b59;padding:4px 10px;border-radius:20px;font-size:13px;display:inline-block}
-.tag.locked{background:#2a2f3d;color:#8b93a5}
-.tag.win{background:#123e2b;color:#54e39a}
-.tag.loss{background:#3e1a20;color:#ff8b96}
-.scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px}
-.pill{display:inline-flex;align-items:center;gap:6px;background:#18314d;padding:6px 12px;border-radius:16px;font-size:13px;margin:2px}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.achv{opacity:.4}
-.achv.unlocked{opacity:1;border-color:#ffd166}
-h1{font-size:24px;margin:0 0 6px}
-h2{font-size:19px;margin:22px 0 10px}
-h3{margin:0 0 6px}
-a.linklike{color:#8fd6ff;background:none;border:none;text-decoration:underline;cursor:pointer;padding:0;font:inherit}
+*{box-sizing:border-box}body{margin:0;background:#07111f;color:#fff;font:16px system-ui,sans-serif}.wrap{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.brand{font-size:24px;font-weight:900}.wallet{padding:10px 15px;border-radius:20px;background:#1a304c;color:#ffd166;font-weight:900}.screen,.card{background:#102038;border:1px solid #2c4868;border-radius:18px;padding:20px}.screen{margin-top:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.nav,.row{display:flex;gap:8px;flex-wrap:wrap}.menu button{width:100%;min-height:70px;text-align:left;font-size:18px}button{border:0;border-radius:11px;padding:13px 16px;background:#32d583;color:#06130c;font-weight:800;cursor:pointer}button.secondary{background:#1b304b;color:#fff;border:1px solid #3a5878}button.danger{background:#ff6374;color:#fff}button:disabled{opacity:.45}.stat{font-size:30px;font-weight:900}.muted{color:#aebbd0}.form{display:grid;gap:12px;max-width:520px}.form input{padding:13px;border-radius:10px;border:1px solid #385675;background:#091625;color:#fff}.notice{padding:12px;margin:12px 0;border-radius:10px;background:#18314d}.err{border-left:4px solid #ff6374}.bar{height:12px;background:#263d59;border-radius:10px;overflow:hidden}.bar i{display:block;height:100%;background:#32d583}.commentary{min-height:120px;background:#071522;border:1px solid #2c4868;border-radius:12px;padding:16px;line-height:1.7}.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.shots button{min-height:65px}.log{max-height:300px;overflow:auto}.tag{background:#203b59;padding:4px 9px;border-radius:20px}@media(max-width:600px){.shots{grid-template-columns:repeat(2,1fr)}.screen{padding:14px}}
 :focus-visible{outline:3px solid #63a4ff;outline-offset:3px}
-@media(max-width:600px){.shots,.deliveries{grid-template-columns:repeat(2,1fr)}.screen{padding:14px}.stat{font-size:24px}}
-
-</style>
-</head>
-<body>
-<a href="#app" class="sr-only">Skip to game content</a>
-<!-- Screen-reader announcement regions. These are always live regardless of
-     the in-game TTS/commentary toggles, because screen-reader users must
-     always be able to follow the game state. -->
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style></head><body><div id="app"></div>
 <div id="live-gentle" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <div id="live-urgent" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
-<div id="app"></div>
 <script type="module">
-/* ============================================================
-   Blind Cricket Pro Ultimate — full game logic
-   ============================================================ */
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import{getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signInWithRedirect,getRedirectResult,GoogleAuthProvider,sendPasswordResetEmail,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-/* ---------- Firebase (existing project config kept exactly as-is) ---------- */
-const firebaseConfig={apiKey:"AIzaSyCFPUinpbamY58LSmu9aVUJNdwjXG7BdjU",authDomain:"blind-cricket-efc31.firebaseapp.com",projectId:"blind-cricket-efc31",storageBucket:"blind-cricket-efc31.firebasestorage.app",messagingSenderId:"121893939422",appId:"1:121893939422:web:5a90638fcadf0a2857ba4f",measurementId:"G-W3ZVRH1GCE"};
-const fbApp=initializeApp(firebaseConfig);
-const fbAuth=getAuth(fbApp);
-const db=getFirestore(fbApp);
+const cfg=window.__FIREBASE_CONFIG__||{apiKey:"AIzaSyCFPUinpbamY58LSmu9aVUJNdwjXG7BdjU",authDomain:"blind-cricket-efc31.firebaseapp.com",projectId:"blind-cricket-efc31",storageBucket:"blind-cricket-efc31.firebasestorage.app",messagingSenderId:"121893939422",appId:"1:121893939422:web:5a90638fcadf0a2857ba4f",measurementId:"G-W3ZVRH1GCE"};
+const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase),root=document.getElementById("app");
+const base={name:"Player",email:"",uid:"",photoURL:"",balance:2000,level:1,xp:0,matches:0,wins:0,losses:0,runs:0,wickets:0,settings:{tts:true,commentary:true,sfx:true,volume:.8},inventory:{},history:[]};
+const shop=[
+["bat","Starter Bat",100,8],["powerbat","Power Bat",500,12],["gloves","Batting Gloves",150,8],
+["helmet","Safety Helmet",250,10],["shoes","Cricket Shoes",300,10],["jersey","Team Jersey",200,15]];
+let player=loadLocal(),page="home",msg="",err="",match=null;
+// booting: true until we've processed the redirect result AND received the first
+// onAuthStateChanged callback. Firebase Auth state is the ONLY source of truth for
+// whether someone is logged in — localStorage is just a cache of the last-known
+// profile and is never used, by itself, to decide whether to show the login screen.
+let booting=true,authReady=false,redirectChecked=false;
 
-const root=document.getElementById("app");
-const liveGentle=document.getElementById("live-gentle");
-const liveUrgent=document.getElementById("live-urgent");
-
-/* ---------- Sound manifest (auto-generated from the sounds/ folder that was supplied) ---------- */
-const MANIFEST = {"extra_default":{"label":"Stadium Commentary (Default)","lang":"English","base":"sounds/extra/","events":{"run3":["3/3 runs.mp3","3/3.mp3","3/3Effect. .mp3","3/3Sound. .mp3"],"toss":["toss/Flip coin. .mp3","toss/Toss coin flip. .mp3","toss/coin_flip.mp3"],"hattrick":["hat trick/Hattrick effect. .mp3","hat trick/Hattrick sound. .mp3","hat trick/hatrick.mp3"],"run5":["5/5 runs customSound. .mp3","5/5 runs.mp3","5/5Effect. .mp3","5/5Sound. .mp3","5/5yes.mp3"],"run2":["2/2 runs.mp3","2/2.mp3","2/2Effect. .mp3","2/2Sound. .mp3","2/2Sound. by tarikh Said. .mp3","2/2runs4.mp3"],"run6":["6/6 sound. .mp3","6/6.mp3","6/6Effect. .mp3","6/6runs.mp3","6/6runs1.mp3","6/6runs2.mp3","6/Chaka-1.mp3","6/Chaka-2.mp3","6/Chaka-3.mp3","6/Chaka-4.mp3","6/Six more. .mp3","6/Six runs by Rameez Raja. .mp3","6/sound of 6.1.mp3","6/sound of 6.2.mp3"],"win":["win/Winning music. .mp3","win/Winning sound effect.mp3","win/Winning sound stand up for the champions.mp3"],"hundred":["100/100 runs. .mp3"],"clock":["clock/Timer. .mp3"],"out":["out/Bold him. .mp3","out/Catch out sound.mp3","out/Catchout.mp3","out/Gone sound. .mp3","out/Quat behind .mp3","out/bold him2.mp3","out/bold him3.mp3","out/bowled. .mp3","out/catch out sound-2.mp3","out/wicked sound.mp3"],"run0":["0/0Commentary. .mp3","0/0Sound. .mp3","0/Bottom edge no Run. .mp3","0/Don't ball1. .mp3","0/don't ball.mp3"],"hundred_partnership":["100 p/100 partnership sound.mp3"],"lose":["lose/Lose game music. .mp3","lose/Lose sound effect.mp3"],"duckout":["duck out/Duck oug.mp3","duck out/duck sound.mp3","duck out/duck.mp3","duck out/duk out.2.mp3"],"noball":["noball/No ball. In English. .mp3","noball/Sound of free hit.mp3","noball/no ball 3.mp3"],"warning":["warning/Ring. Bell. .mp3","warning/Warning whistle. .mp3","warning/Warning. .mp3","warning/warning bell sound.mp3","warning/warning countdown.mp3"],"fifty":["50/50 custom sound.mp3","50/50runs.mp3","50/sound of 50.mp3"],"run4":["4/4 runs.mp3","4/4 sound. .mp3","4/4.mp3","4/4Effect. .mp3","4/4runs.2.mp3","4/4runs.mp3","4/Excellent shot four runs. .mp3","4/powerful drive for 4runs.mp3"],"run1":["1/1 runs.mp3","1/1 sound.mp3","1/1.mp3","1/1Effect. .mp3","1/1sound Effect.mp3"]}},"stadium1":{"label":"MK Intl Stadium I","lang":"English","base":"sounds/extra/01. MK International Stadium/","events":{"run3":["3/3-1.mp3","3/3.mp3"],"toss":["toss/toss 2.mp3","toss/tosse 1.mp3"],"hattrick":["hat trick/Hattrick .mp3"],"run5":["5/5.mp3"],"run2":["2/2 runs.mp3","2/2-1.mp3","2/2.mp3"],"run6":["6/6-1.mp3","6/6.mp3"],"hundred":["100/100.mp3"],"out":["out/Bold.mp3","out/Out-1.mp3","out/bold-1.mp3","out/bold-2.mp3","out/bold-3.mp3","out/out.mp3"],"run0":["0/0.mp3"],"hundred_partnership":["100 p/100 partner ship.mp3"],"duckout":["duck out/duck-out sound (1).mp3"],"warning":["warning/Warning whistle. .mp3"],"fifty":["50/50 (1).mp3","50/50.mp3"],"run4":["4/4 runs (1).mp3","4/4-1.mp3","4/4.mp3"],"fifty_partnership":["50 p/50 partner ship.mp3"],"run1":["1/1 run-1.mp3","1/1-1.mp3","1/1run (1).mp3"]}},"stadium2":{"label":"MK Intl Stadium II","lang":"English","base":"sounds/extra/02. MK International Stadium/","events":{"run3":["3/3 (1).mp3"],"toss":["toss/toss 2.mp3","toss/tosse 1.mp3"],"run5":["5/5 runs (1).mp3","5/5 runs customSound.  (1).mp3"],"run2":["2/2 (1).mp3"],"run6":["6/6 (1).mp3","6/6 sound.  (2).mp3","6/6Sound in Hindi.  (1).mp3"],"out":["out/wkt st.mp3"],"run0":["0/Don't ball1.  (2).mp3"],"hundred_partnership":["100 p/100 partnership sound (1).mp3"],"lose":["lose/Lose sound effect (1).mp3"],"fifty":["50/50 (1).mp3","50/50 custom sound (1).mp3"],"fifty_partnership":["50 p/50 partnership custom sound (1).mp3"],"run1":["1/1 runs.mp3"]}},"stadium3":{"label":"MK Intl Stadium III","lang":"English","base":"sounds/extra/03. MK International Stadium/","events":{"run3":["3/3-1.mp3","3/3.mp3"],"toss":["toss/toss 2.mp3","toss/tosse 1.mp3"],"hattrick":["Hattrick/Hattrick .mp3"],"run5":["5/5.mp3"],"run2":["2/2 r 2.mp3","2/2 runs.mp3","2/2-1.mp3","2/2.mp3"],"run6":["6/6 r 1.mp3","6/6 r 3.mp3","6/6 r 4.mp3","6/6 r.mp3","6/6-1.mp3","6/6.mp3"],"hundred":["100/100.mp3"],"out":["out/Bold.mp3","out/Out-1.mp3","out/bold-1.mp3","out/bold-2.mp3","out/bold-3.mp3","out/out.mp3"],"run0":["0/0.mp3","0/no.mp3"],"duckout":["duckout/duck-out sound (1).mp3"],"lose":["lose/Lose game music. .mp3"],"hundred_partnership":["100 partner ship/100 partner ship.mp3"],"noball":["noball/no ball-1.mp3","noball/no ball-2.mp3"],"fifty_partnership":["50partnership/50 partner ship.mp3"],"warning":["warning/Ring. Bell. .mp3","warning/Warning whistle. .mp3","warning/warning bell sound.mp3"],"fifty":["50/50 (1).mp3","50/50.mp3"],"run4":["4/4 r 2.mp3","4/4 r 3.mp3","4/4 r.mp3","4/4 runs (1).mp3","4/4-1.mp3","4/4.mp3"],"run1":["1/1 r 1.mp3","1/1 r.mp3","1/1 run-1.mp3","1/1-1.mp3","1/1run (1).mp3"]}},"stadium4_urdu":{"label":"MK Intl Stadium (Urdu)","lang":"Urdu","base":"sounds/extra/04. Urdu, MK International Stadium/","events":{"run3":["3/3.mp3","3/3Sound. .mp3","3/3runs in urdu.mp3"],"hattrick":["hat trick/hatrick.mp3"],"run5":["5/5 runs customSound. .mp3","5/5Sound. .mp3"],"run2":["2/2runs in urdu.mp3","2/2runs.2 in urdu.mp3","2/2runs.3 in urdu.mp3","2/2runs.4.mp3","2/2runs.5 in urdu.mp3","2/2runs.mp3"],"run6":["6/6Sound in Hindi. .mp3","6/6runs by babar azam in urdu.mp3","6/6runs by babar azam.2.mp3","6/6runs in urdu.mp3","6/6runs.10 in urdu.mp3","6/6runs.11 in urdu.mp3","6/6runs.12 in urdu.mp3","6/6runs.13 in urdu.mp3","6/6runs.14 in urdu.mp3","6/6runs.15 in urdu.mp3","6/6runs.3 in urdu.mp3","6/6runs.4 in urdu.mp3","6/6runs.5 in urdu.mp3","6/6runs.6.mp3","6/6runs.7 in urdu.mp3","6/6runs.8.mp3","6/6runs.9 in urdu.mp3","6/6runs.mp3","6/its a six.mp3","6/sixer sound in hindi.mp3"],"out":["out/LBW Out.2 in urdu.mp3","out/LBW out in urdu.mp3","out/Out sound in Hindi. .mp3","out/bold him.2.mp3","out/bold him.mp3","out/catch out in urdu.mp3","out/catch out.2 in urdu.mp3","out/catch out.3 in urdu.mp3","out/catch out.4.mp3","out/catch out.5 in urdu.mp3","out/catch out.mp3","out/clean bold in urdu.mp3","out/out hay sound.mp3","out/run out in urdu.mp3","out/wicked sound in urdu 1.mp3","out/wicked sound in urdu 2.mp3","out/wicket sound in hindi.mp3"],"run0":["0/Sound of zero run.mp3","0/dod ball in urdu.mp3","0/dod ball.2 in urdu.mp3","0/dod ball.3 in urdu.mp3","0/dod ball.4.mp3","0/don't ball commentary by tariq saeed.mp3"],"hundred_partnership":["100 p/100 partnership sound.mp3"],"duckout":["duck out/duk out.2.mp3"],"noball":["noball/no ball-1.mp3","noball/no ball2.2.mp3"],"fifty":["50/50 runs sound in hindi.mp3"],"run4":["4/4runs in urdu.mp3","4/4runs.10 in urdu.mp3","4/4runs.11 in urdu.mp3","4/4runs.2 in urdu.mp3","4/4runs.3 in urdu.mp3","4/4runs.4 in urdu.mp3","4/4runs.5 in urdu.mp3","4/4runs.6.mp3","4/4runs.7 in urdu.mp3","4/4runs.8 in urdu.mp3","4/4runs.9 in urdu.mp3","4/four sound in hindi.mp3","4/its a 4.mp3"],"run1":["1/1run in urdu.mp3","1/1run.10.mp3","1/1run.11 in urdu.mp3","1/1run.2 in urdu.mp3","1/1run.3 in urdu.mp3","1/1run.4 in urdu.mp3","1/1run.5 in urdu.mp3","1/1run.6 in urdu.mp3","1/1run.7 in urdu.mp3","1/1run.8 in urdu.mp3","1/1run.9.mp3","1/1run.mp3"]}},"english_hayden":{"label":"Matthew Hayden","lang":"English","base":"sounds/english/English - Matthew Hayden/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3","2/2-2.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3"],"out":["out/out-1.mp3","out/out-2.mp3"],"run0":["0/0-1.mp3"],"noball":["noball/noball-1.mp3","noball/noball-2.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3","4/4-3.mp3"],"run1":["1/1-1.mp3"]}},"english_isa":{"label":"Isa Guha","lang":"English","base":"sounds/english/English - Isa Guha/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3","2/2-2.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3"],"win":["win/win.mp3"],"out":["out/out-1.mp3"],"run0":["0/0-1.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3"],"run1":["1/1-1.mp3"]}},"hindi_anjum":{"label":"Anjum Chopra","lang":"Hindi","base":"sounds/hindi/Hindi - Anjum Chopra/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3","6/6-4.mp3","6/6-5.mp3"],"out":["out/out-1.mp3"],"run0":["0/0-1.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3"],"run1":["1/1-1.mp3"]}},"hindi_akash":{"label":"Akash Chopra","lang":"Hindi","base":"sounds/hindi/Hindi - Akash Chopra/","events":{"run5":["5/5-1.mp3"],"run2":["2/2-1.mp3","2/2-2.mp3","2/2-3.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3","6/6-4.mp3","6/6-5.mp3","6/6-6.mp3","6/6-7.mp3"],"out":["out/out-1.mp3","out/out-2.mp3","out/out-3.mp3","out/out-4.mp3","out/out-5.mp3","out/out-6.mp3"],"run0":["0/0-1.mp3","0/0-2.mp3","0/0-3.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3","4/4-3.mp3","4/4-4.mp3"],"run1":["1/1-1.mp3"]}},"urdu_danish":{"label":"Danish Naeem Abbasi","lang":"Urdu","base":"sounds/urdu/Urdu - Danish Naeem Abbasi/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3"],"run0":["0/0-1.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3"],"run1":["1/1-1.mp3"]}},"urdu_tariq":{"label":"Tariq Saeed","lang":"Urdu","base":"sounds/urdu/Urdu - Tariq Saeed/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3","2/2-2.mp3","2/2-3.mp3","2/2-4.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3"],"out":["out/out-1 (1).mp3","out/out-1.mp3","out/out-2 (1).mp3","out/out-2.mp3"],"run0":["0/0-1.mp3","0/0-2.mp3"],"noball":["noball/noball-1.mp3","noball/noball-2.mp3","noball/noball-3.mp3","noball/noball4.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3"],"run1":["1/1-1.mp3","1/1-2.mp3"]}},"telugu_venkat":{"label":"Venkatapathy Raju","lang":"Telugu","base":"sounds/telgu/Telugu - Venkatapathy Raju/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3"],"out":["out/out-1.mp3","out/out-2.mp3"],"run0":["0/0-1.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3","4/4-3.mp3"],"run1":["1/1-1.mp3"]}},"tamil_abhinav":{"label":"Abhinav Mukund","lang":"Tamil","base":"sounds/tamil/Tamil - Abhinav Mukund/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3"],"run6":["6/6-1.mp3"],"out":["out/out-1.mp3"],"run0":["0/0-1.mp3","0/0-2.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3"],"run1":["1/1-1.mp3"]}},"kannada_vijay":{"label":"Vijay Bharadwaj","lang":"Kannada","base":"sounds/Kannada/Kannada - Vijay Bharadwaj/","events":{"run3":["3/3-1.mp3"],"run2":["2/2-1.mp3","2/2-2.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3","6/6-4.mp3","6/6-5.mp3","6/6-6.mp3","6/6-7.mp3"],"out":["out/out-1.mp3"],"run0":["0/0-1.mp3","0/0-2.mp3"],"noball":["noball/noball-1.mp3","noball/noball-2.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3"],"run1":["1/1-1.mp3"]}},"bengali_deep":{"label":"Deep Dasgupta","lang":"Bengali","base":"sounds/Bengali/Bengali - Deep Dasgupta/","events":{"run2":["2/2-1.mp3"],"run6":["6/6-1.mp3","6/6-2.mp3","6/6-3.mp3"],"out":["out/out-1.mp3"],"run0":["0/0-1.mp3"],"noball":["noball/noball-1.mp3"],"run4":["4/4-1.mp3","4/4-2.mp3"],"run1":["1/1-1.mp3"]}}};
-const DEFAULT_PACK="extra_default";
-
-/* ---------- Shop catalogue ---------- */
-const SHOP=[
- {id:"bat",name:"Starter Bat",price:100,durability:8,icon:"🏏",desc:"A reliable everyday bat for building your innings."},
- {id:"powerbat",name:"Power Bat",price:500,durability:12,icon:"💥",desc:"A heavier bat that helps your big shots carry further."},
- {id:"gloves",name:"Batting Gloves",price:150,durability:8,icon:"🧤",desc:"Better grip, fewer mistimed shots."},
- {id:"helmet",name:"Safety Helmet",price:250,durability:10,icon:"⛑️",desc:"Protects you and steadies your nerves against quick bowling."},
- {id:"shoes",name:"Cricket Shoes",price:300,durability:10,icon:"👟",desc:"Better footwork when running between the wickets."},
- {id:"jersey",name:"Team Jersey",price:200,durability:15,icon:"👕",desc:"Wear your colours with pride. Long lasting."}
-];
-
-/* ---------- Achievements ---------- */
-const ACHIEVEMENTS=[
- {id:"first_match",name:"First Steps",desc:"Play your first match.",check:p=>p.matches>=1},
- {id:"first_win",name:"Winning Feeling",desc:"Win your first match.",check:p=>p.wins>=1},
- {id:"half_century",name:"Half Century",desc:"Score 50 or more runs in a single innings.",check:(p,m)=>!!(m&&m.bestInningsRuns>=50)},
- {id:"century",name:"Century Maker",desc:"Score 100 or more runs in a single innings.",check:(p,m)=>!!(m&&m.bestInningsRuns>=100)},
- {id:"hat_trick",name:"Hat-Trick Hero",desc:"Take three wickets in three balls while bowling.",check:(p,m)=>!!(m&&m.hatTrick)},
- {id:"big_hitter",name:"Big Hitter",desc:"Hit 5 or more sixes in total.",check:p=>p.sixes>=5},
- {id:"veteran",name:"Veteran",desc:"Play 25 matches.",check:p=>p.matches>=25},
- {id:"champion",name:"Champion",desc:"Win 10 matches.",check:p=>p.wins>=10},
- {id:"collector",name:"Kit Collector",desc:"Own every item in the shop.",check:p=>SHOP.every(s=>p.inventory[s.id])},
- {id:"level5",name:"Rising Star",desc:"Reach player level 5.",check:p=>p.level>=5}
-];
-
-/* ---------- Default player shape ---------- */
-function freshPlayer(uid,email,name){
- return {
-  uid:uid||"",email:email||"",name:name||"Player",
-  balance:2000,level:1,xp:0,
-  matches:0,wins:0,losses:0,runs:0,wickets:0,fours:0,sixes:0,
-  inventory:{},history:[],achievements:[],
-  settings:{tts:true,commentary:true,sfx:true,commentaryVolume:0.9,sfxVolume:0.6,commentator:DEFAULT_PACK},
-  updatedAt:0
- };
-}
-const LOCAL_KEY="BCPU_PLAYER_V2";
-const GUEST_KEY="BCPU_GUEST_V2";
-
-function loadLocal(){
- try{const raw=localStorage.getItem(LOCAL_KEY);if(!raw)return null;const parsed=JSON.parse(raw);return Object.assign(freshPlayer(),parsed,{settings:Object.assign({tts:true,commentary:true,sfx:true,commentaryVolume:0.9,sfxVolume:0.6,commentator:DEFAULT_PACK},parsed.settings||{})});}
- catch(err){console.warn("Could not read local save",err);return null;}
-}
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(player));}catch(err){console.warn("Could not write local save",err);}}
-
-/* ---------- App state ---------- */
-let player=loadLocal()||freshPlayer();
-let page="home";
-let authMode="login";
-let formError="";
-let formMsg="";
-let match=null;
-let pendingSync=false;
-let toast="";
-
-function esc(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function xpNeeded(level){return level*100;}
-function fmtWhen(ts){try{return new Date(ts).toLocaleString();}catch{return "";}}
-function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
-
-/* ================== SOUND ENGINE ================== */
-const commentaryAudio=new Audio();
-let audioCtx=null;
-function getAudioCtx(){if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch{audioCtx=null;}}return audioCtx;}
-
-function currentPack(){return MANIFEST[player.settings.commentator]||MANIFEST[DEFAULT_PACK];}
-
-function pickClip(eventKey){
- let pack=currentPack();
- let list=pack.events[eventKey];
- if((!list||!list.length)&&pack.id!==DEFAULT_PACK){pack=MANIFEST[DEFAULT_PACK];list=pack.events[eventKey];}
- if(!list||!list.length)return null;
- const file=list[Math.floor(Math.random()*list.length)];
- return {url:encodeURI(pack.base+file),pack};
-}
-
-function speak(text,force){
- if(!force&&!player.settings.tts)return;
- if(!("speechSynthesis" in window))return;
- try{
-  window.speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.volume=clamp(player.settings.commentaryVolume,0,1);
-  window.speechSynthesis.speak(u);
- }catch(err){console.warn("TTS failed",err);}
-}
-
-function beep(kind){
- if(!player.settings.sfx)return;
- const ctx=getAudioCtx();
- if(!ctx)return;
- const freqs={start:523,dot:220,run:440,boundary:660,six:880,wicket:150,wide:330,menu:392,levelup:988,buy:660};
- const f=freqs[kind]||440;
- try{
-  const osc=ctx.createOscillator();
-  const gain=ctx.createGain();
-  osc.type=kind==="wicket"?"sawtooth":"sine";
-  osc.frequency.value=f;
-  gain.gain.value=clamp(player.settings.sfxVolume,0,1)*0.25;
-  osc.connect(gain);gain.connect(ctx.destination);
-  osc.start();
-  gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);
-  osc.stop(ctx.currentTime+0.36);
- }catch(err){/* ignore */}
-}
-
-/**
- * announce(): the single source of truth for telling the player what happened.
- * - Always updates the on-screen commentary text and the ARIA live regions
- *   (this is the part screen-reader users depend on, regardless of settings).
- * - Optionally plays a real commentary audio clip from the sounds/ library.
- * - Falls back to (or follows up with) speech synthesis.
- */
-function announce(eventKey,text,{urgent=false}={}){
- commentaryText=text;
- commentaryLog.unshift(text);
- if(commentaryLog.length>40)commentaryLog.length=40;
- if(liveGentle)liveGentle.textContent=text;
- if(urgent&&liveUrgent)liveUrgent.textContent=text;
- let played=false;
- if(player.settings.commentary&&eventKey){
-  const clip=pickClip(eventKey);
-  if(clip){
-   try{
-    commentaryAudio.pause();
-    commentaryAudio.src=clip.url;
-    commentaryAudio.volume=clamp(player.settings.commentaryVolume,0,1);
-    commentaryAudio.onended=()=>{if(player.settings.tts)speak(text);};
-    commentaryAudio.onerror=()=>{if(player.settings.tts)speak(text);};
-    const p=commentaryAudio.play();
-    if(p&&p.catch)p.catch(()=>{if(player.settings.tts)speak(text);});
-    played=true;
-   }catch(err){played=false;}
-  }
- }
- if(!played&&player.settings.tts)speak(text);
-}
-let commentaryText="Welcome to Blind Cricket Pro Ultimate.";
-let commentaryLog=[];
-
-/* ================== CLOUD SYNC ================== */
-function sanitizeForCloud(p){
- const copy=JSON.parse(JSON.stringify(p));
- delete copy.password;
- return copy;
-}
-async function pushCloud(){
- player.updatedAt=Date.now();
- saveLocal();
- if(!fbAuth.currentUser)return;
- if(typeof navigator!=="undefined"&&navigator.onLine===false){pendingSync=true;return;}
- try{
-  await setDoc(doc(db,"players",fbAuth.currentUser.uid),sanitizeForCloud(player),{merge:true});
-  pendingSync=false;
- }catch(err){
-  console.warn("Cloud sync failed, will retry when online:",err);
-  pendingSync=true;
- }
-}
-window.addEventListener("online",()=>{if(pendingSync)pushCloud();});
-
+function loadLocal(){try{return Object.assign({},base,JSON.parse(localStorage.getItem("BCPU_PLAYER_V2")||localStorage.getItem("BCPU")||"null"))}catch{return {...base}}}
+function saveLocal(){localStorage.setItem("BCPU_PLAYER_V2",JSON.stringify(player));if(player.uid)localStorage.setItem("blindCricketCurrentUser",player.uid)}
+function clearLocalSession(){localStorage.removeItem("BCPU_PLAYER_V2");localStorage.removeItem("blindCricketCurrentUser");localStorage.removeItem("BCPU");localStorage.removeItem("BCPU_GUEST")}
+function e(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function need(){return player.level*100}
+function speak(t){if(player.settings.tts&&speechSynthesis){speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t);u.volume=player.settings.volume;speechSynthesis.speak(u)}}
+function announce(t,urgent){let r=document.getElementById(urgent?"live-urgent":"live-gentle");if(r)r.textContent=t}
+function sanitizeForCloud(p){let{password,...rest}=p;return rest}
+async function pushCloud(){saveLocal();if(!auth.currentUser)return;try{await setDoc(doc(db,"players",auth.currentUser.uid),{...sanitizeForCloud(player),updatedAt:Date.now()},{merge:true})}catch(x){console.log(x)}}
 async function loadForUser(u){
- const local=loadLocal();
  try{
-  const snap=await getDoc(doc(db,"players",u.uid));
+  let snap=await getDoc(doc(db,"players",u.uid));
   if(snap.exists()){
-   const cloud=snap.data();
-   if(local&&(local.updatedAt||0)>(cloud.updatedAt||0)&&local.uid===u.uid){
-    player=local;
-   }else{
-    player=Object.assign(freshPlayer(u.uid,u.email),cloud,{uid:u.uid,email:u.email||cloud.email||""});
+   let cloudData=snap.data();
+   // merge safely: cloud data wins for known fields, but never drop fields the
+   // cloud doc doesn't have yet (keeps stats/inventory/history intact)
+   player=Object.assign({},base,cloudData,{uid:u.uid,email:u.email||cloudData.email||"",photoURL:u.photoURL||cloudData.photoURL||"",name:cloudData.name||u.displayName||"Player"});
+   saveLocal();
+   page="home";
+  }else{
+   player={...base,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player"};
+   saveLocal();
+   page="onboarding";
+  }
+ }catch(x){err="Could not load your profile. Check your connection.";console.log(x)}
+ announce("Signed in as "+(player.name||"Player"),true);
+ render();
+}
+function friendlyAuthError(x){
+ let code=x&&x.code||"";
+ if(code==="auth/unauthorized-domain")return "This site isn't authorized for Google Sign-In yet. Add choudharyshyam5-ctrl.github.io in Firebase Console → Authentication → Settings → Authorized domains.";
+ if(code==="auth/popup-closed-by-user"||code==="auth/cancelled-popup-request")return "Sign-in was cancelled.";
+ if(code==="auth/network-request-failed")return "Network error. Check your connection and try again.";
+ if(code==="auth/too-many-requests")return "Too many attempts. Please wait a moment and try again.";
+ return "Could not sign you in. Please try again.";
+}
+
+// ---- Boot sequence (must run in this order) ----
+// 1. set persistence  2. process any pending redirect result  3. subscribe to
+// onAuthStateChanged, which is the real source of truth from then on.
+setPersistence(auth,browserLocalPersistence)
+ .catch(x=>console.log(x))
+ .then(()=>getRedirectResult(auth))
+ .then(r=>{ if(r&&r.user){/* handled by onAuthStateChanged below too, this just surfaces errors early */ } })
+ .catch(x=>{ err=friendlyAuthError(x); })
+ .then(()=>{
+  redirectChecked=true;
+  onAuthStateChanged(auth,u=>{
+   authReady=true;
+   booting=false;
+   if(u)loadForUser(u);
+   else{
+    // Firebase says nobody is signed in — stale local data is not proof of
+    // authentication, so clear it and show Google Sign-In. Never fabricate a guest profile.
+    if(player.uid)clearLocalSession();
+    player={...base};
+    page="login";
+    render();
    }
-  }else{
-   player=(local&&(local.uid===u.uid||!local.uid))?Object.assign(local,{uid:u.uid,email:u.email||local.email}):freshPlayer(u.uid,u.email,(u.displayName||(u.email||"Player").split("@")[0]));
-   await pushCloud();
-  }
- }catch(err){
-  console.warn("Could not reach Firestore, using local save:",err);
-  player=local&&(local.uid===u.uid||!local.uid)?Object.assign(local,{uid:u.uid,email:u.email||local.email}):freshPlayer(u.uid,u.email,(u.displayName||(u.email||"Player").split("@")[0]));
- }
- saveLocal();
- localStorage.removeItem(GUEST_KEY);
- page="home";
- render();
-}
-
-onAuthStateChanged(fbAuth,u=>{if(u)loadForUser(u);else render();});
-getRedirectResult(fbAuth).then(r=>{if(r&&r.user)loadForUser(r.user);}).catch(err=>console.warn("Redirect sign-in issue:",err));
-
-/* ================== AUTH ACTIONS ================== */
-function friendlyAuthError(code,message){
- const map={
-  "auth/invalid-credential":"That email or password is incorrect.",
-  "auth/invalid-email":"Please enter a valid email address.",
-  "auth/email-already-in-use":"An account with that email already exists. Try logging in instead.",
-  "auth/weak-password":"Please choose a password with at least 6 characters.",
-  "auth/too-many-requests":"Too many attempts. Please wait a moment and try again.",
-  "auth/network-request-failed":"Network error. Check your connection and try again.",
-  "auth/popup-closed-by-user":"Sign-in was cancelled.",
-  "auth/user-not-found":"No account found with that email."
- };
- return map[code]||message||"Something went wrong. Please try again.";
-}
-async function doLoginOrRegister(ev){
- ev.preventDefault();
- formError="";formMsg="";
- const emailEl=document.getElementById("f-email");
- const passEl=document.getElementById("f-pass");
- const nameEl=document.getElementById("f-name");
- const email=(emailEl?.value||"").trim();
- const pass=passEl?.value||"";
- try{
-  if(authMode==="register"){
-   const cred=await createUserWithEmailAndPassword(fbAuth,email,pass);
-   player=freshPlayer(cred.user.uid,cred.user.email,(nameEl?.value||"").trim()||"Player");
-   await pushCloud();
-  }else{
-   await signInWithEmailAndPassword(fbAuth,email,pass);
-  }
-  localStorage.removeItem(GUEST_KEY);
- }catch(err){
-  formError=friendlyAuthError(err.code,err.message);
- }
- render();
-}
-async function doGoogle(){
- formError="";
- try{await signInWithRedirect(fbAuth,new GoogleAuthProvider());}
- catch(err){formError=friendlyAuthError(err.code,err.message);render();}
-}
-async function doForgotPassword(){
- const emailEl=document.getElementById("f-email");
- const email=(emailEl?.value||"").trim();
- if(!email){formError="Enter your email address first, then choose Forgot Password.";render();return;}
- try{
-  await sendPasswordResetEmail(fbAuth,email);
-  formMsg="Password reset email sent. Please check your inbox.";formError="";
- }catch(err){formError=friendlyAuthError(err.code,"Could not send the reset email.");}
- render();
-}
-function doPlayOffline(){
- localStorage.setItem(GUEST_KEY,"1");
- if(!player.uid)player=Object.assign(loadLocal()||freshPlayer(),{});
- page="home";
- render();
-}
-async function doLogout(){
- try{await signOut(fbAuth);}catch(err){console.warn(err);}
- localStorage.removeItem(GUEST_KEY);
- page="home";
- render();
-}
-
-/* ================== SHOP ACTIONS ================== */
-function findShopItem(id){return SHOP.find(s=>s.id===id);}
-function buyItem(id){
- const item=findShopItem(id);
- if(!item)return;
- if(player.balance<item.price){toast="You don't have enough balance for the "+item.name+".";speak(toast);render();return;}
- player.balance-=item.price;
- player.inventory[id]={durability:item.durability,maxDurability:item.durability};
- toast=item.name+" purchased for ₹"+item.price+".";
- speak(toast);
- beep("buy");
- pushCloud();
- checkAchievements();
- render();
-}
-function repairItem(id){
- const item=findShopItem(id);
- const owned=player.inventory[id];
- if(!item||!owned)return;
- if(owned.durability>0)return;
- if(player.balance<1){toast="You need at least ₹1 to repair the "+item.name+".";speak(toast);render();return;}
- player.balance-=1;
- owned.durability=owned.maxDurability||item.durability;
- toast=item.name+" repaired for ₹1.";
- speak(toast);
- beep("buy");
- pushCloud();
- render();
-}
-function wearRandomItem(){
- const owned=Object.keys(player.inventory).filter(id=>player.inventory[id].durability>0);
- if(!owned.length)return;
- const id=owned[Math.floor(Math.random()*owned.length)];
- player.inventory[id].durability--;
- if(player.inventory[id].durability===0){
-  const item=findShopItem(id);
-  if(item){
-   toast=(item.name)+" has worn out. Repair for ₹1 in the Shop.";
-   match&&match.log.unshift(toast);
-  }
- }
-}
-
-/* ================== ACHIEVEMENTS ================== */
-function checkAchievements(matchSummary){
- const newly=[];
- ACHIEVEMENTS.forEach(a=>{
-  if(!player.achievements.includes(a.id)&&a.check(player,matchSummary)){
-   player.achievements.push(a.id);
-   newly.push(a);
-  }
+  });
  });
- return newly;
-}
 
-/* ================== MATCH ENGINE ================== */
-const OVERS_PER_INNINGS=2;
-const BALLS_PER_OVER=6;
-const TOTAL_BALLS=OVERS_PER_INNINGS*BALLS_PER_OVER;
-const MAX_WICKETS=4;
-
-function newInningsState(){return {runs:0,wickets:0,balls:0,fours:0,sixes:0,extras:0,log:[]};}
-
-function startMatch(){
- match={
-  stage:"toss",
-  coinCall:null,
-  tossWinner:null,
-  battingFirst:null,
-  currentInnings:1,
-  battingSide:null, // 'player' or 'ai' — who is batting right now
-  target:null,
-  player:newInningsState(),
-  ai:newInningsState(),
-  bowlStreakWickets:0,
-  hatTrick:false,
-  bestInningsRuns:0,
-  log:[],
-  done:false,
-  win:null,
-  reward:0,
-  xpGain:0
- };
- announce("toss","New match! Call the coin toss: Heads or Tails?");
- render();
-}
-function callToss(call){
- if(!match)return;
- const result=Math.random()<0.5?"heads":"tails";
- const won=call===result;
- match.tossWinner=won?"player":"ai";
- match.stage=won?"decision":"waiting-ai-decision";
- const line="The coin lands on "+result+". You called "+call+". "+(won?"You won the toss!":"The computer won the toss.");
- announce(won?"win":"toss",line,{urgent:true});
- if(!won){
-  const aiChoice=Math.random()<0.5?"bat":"bowl";
-  match.battingFirst=aiChoice==="bat"?"ai":"player";
-  match.battingSide=match.battingFirst;
-  const l2="The computer chooses to "+aiChoice+" first.";
-  match.log.unshift(l2);
-  setTimeout(()=>{
-   if(!match)return;
-   match.stage="innings";
-   announce(null,l2);
-   render();
-  },900);
- }
- render();
-}
-function chooseBatOrBowl(choice){
- if(!match||match.tossWinner!=="player")return;
- match.battingFirst=choice==="bat"?"player":"ai";
- match.battingSide=match.battingFirst;
- match.stage="innings";
- announce(null,"You choose to "+choice+" first.");
- render();
-}
-
-const SHOT_TABLE={
- defend:{out:0.03,outcomes:[[0,0.85],[1,0.12]]},
- single:{out:0.06,outcomes:[[1,0.78],[2,0.10],[0,0.06]]},
- double:{out:0.10,outcomes:[[2,0.70],[1,0.15],[3,0.05]]},
- four:{out:0.18,outcomes:[[4,0.55],[1,0.18],[0,0.09]]},
- six:{out:0.28,outcomes:[[6,0.45],[0,0.15],[1,0.12]]}
-};
-const SHOT_LABEL={defend:"Defend / Dot",single:"Single",double:"Double",four:"Boundary (4)",six:"Big Hit (6)"};
-
-const DELIVERY_TABLE={
- yorker:{out:0.18,wide:0.03,noball:0.02,outcomes:[[0,0.42],[1,0.27],[4,0.09],[6,0.02]]},
- bouncer:{out:0.12,wide:0.05,noball:0.03,outcomes:[[0,0.28],[1,0.22],[4,0.22],[6,0.14]]},
- spin:{out:0.10,wide:0.02,noball:0.01,outcomes:[[0,0.35],[1,0.35],[4,0.13],[6,0.06]]},
- straight:{out:0.08,wide:0.015,noball:0.01,outcomes:[[0,0.45],[1,0.34],[4,0.10],[6,0.02]]}
-};
-const DELIVERY_LABEL={yorker:"Yorker",bouncer:"Bouncer",spin:"Spin",straight:"Good Length"};
-
-function weightedPick(outcomes,fallback){
- const r=Math.random();
- let cum=0;
- for(const [val,prob] of outcomes){cum+=prob;if(r<=cum)return val;}
- return fallback;
-}
-
-function activeInnings(){return match.battingSide==="player"?match.player:match.ai;}
-
-function playerBats(shotKey){
- if(!match||match.stage!=="innings"||match.battingSide!=="player")return;
- const table=SHOT_TABLE[shotKey];
- const inn=match.player;
- // small chance of an extra delivery (wide/no-ball) bowled by the AI
- const extraRoll=Math.random();
- if(extraRoll<0.03){
-  inn.runs+=1;inn.extras+=1;
-  const line="Wide ball. 1 extra run. Same shot options remain.";
-  match.log.unshift(line);
-  announce("noball",line);
-  applyWearIfMatch();
-  render();return;
- }
- if(extraRoll<0.05){
-  inn.runs+=1;inn.extras+=1;
-  const line="No ball! 1 extra run, and a free hit coming up.";
-  match.log.unshift(line);
-  announce("noball",line,{urgent:true});
-  applyWearIfMatch();
-  render();return;
- }
- inn.balls++;
- const out=Math.random()<table.out;
- let line,eventKey;
- if(out){
-  inn.wickets++;
-  eventKey="out";
-  line="OUT! You lose a wicket playing the "+SHOT_LABEL[shotKey].toLowerCase()+" shot.";
-  beep("wicket");
- }else{
-  const runs=weightedPick(table.outcomes,0);
-  inn.runs+=runs;
-  if(runs===4)inn.fours++,player.fours++;
-  if(runs===6)inn.sixes++,player.sixes++;
-  eventKey=runs===0?"run0":runs===6?"run6":runs===4?"run4":runs===3?"run3":runs===2?"run2":"run1";
-  line=runs===0?"Dot ball. No run.":(runs===6?"SIX! What a shot!":(runs===4?"FOUR! Great timing!":runs+" run"+(runs===1?"":"s")+" completed."));
-  beep(runs>=4?"boundary":runs===0?"dot":"run");
- }
- match.log.unshift(line);
- announce(eventKey,line,{urgent:out});
- applyWearIfMatch();
- checkInningsMilestones(inn);
- maybeEndInnings();
- render();
-}
-
-function playerBowls(deliveryKey){
- if(!match||match.stage!=="innings"||match.battingSide!=="ai")return;
- const table=DELIVERY_TABLE[deliveryKey];
- const inn=match.ai;
- const wideRoll=Math.random();
- if(wideRoll<table.wide){
-  inn.runs+=1;inn.extras+=1;
-  const line="You bowl a wide. 1 extra run conceded.";
-  match.log.unshift(line);
-  announce("noball",line);
-  render();return;
- }
- if(wideRoll<table.wide+table.noball){
-  inn.runs+=1;inn.extras+=1;
-  const line="No ball! 1 extra run conceded, and a free hit for the batter.";
-  match.log.unshift(line);
-  announce("noball",line,{urgent:true});
-  render();return;
- }
- inn.balls++;
- const out=Math.random()<table.out;
- let line,eventKey;
- if(out){
-  inn.wickets++;
-  match.bowlStreakWickets++;
-  if(match.bowlStreakWickets>=3&&!match.hatTrick){match.hatTrick=true;}
-  eventKey="out";
-  line="WICKET! Your "+DELIVERY_LABEL[deliveryKey].toLowerCase()+" does the trick. The computer loses a batter.";
-  beep("wicket");
- }else{
-  match.bowlStreakWickets=0;
-  const runs=weightedPick(table.outcomes,0);
-  inn.runs+=runs;
-  eventKey=runs===0?"run0":runs===6?"run6":runs===4?"run4":"run1";
-  line=runs===0?"Dot ball. Excellent bowling.":(runs===6?"SIX conceded! The computer attacks.":(runs===4?"FOUR conceded.":runs+" run"+(runs===1?"":"s")+" conceded."));
-  beep(runs>=4?"boundary":runs===0?"dot":"run");
- }
- match.log.unshift(line);
- announce(eventKey,line,{urgent:out});
- checkInningsMilestones(inn);
- maybeEndInnings();
- render();
-}
-
-function checkInningsMilestones(inn){
- if(inn.runs>=100&&!inn._announced100){inn._announced100=true;announce("hundred","A magnificent century! 100 runs up.",{urgent:true});}
- else if(inn.runs>=50&&!inn._announced50){inn._announced50=true;announce("fifty","Fifty up! Half-century.",{urgent:true});}
- if(inn.runs>match.bestInningsRuns)match.bestInningsRuns=inn.runs;
-}
-
-function applyWearIfMatch(){
- // Only the human player's own equipment wears down, and only while they are batting.
- wearRandomItem();
-}
-
-function inningsIsOver(inn){
- return inn.balls>=TOTAL_BALLS||inn.wickets>=MAX_WICKETS||(match.target!==null&&inn.runs>=match.target);
-}
-
-function maybeEndInnings(){
- const inn=activeInnings();
- if(!inningsIsOver(inn))return;
- if(match.currentInnings===1){
-  match.target=inn.runs+1;
-  match.stage="innings-break";
-  const battedFirstName=match.battingSide==="player"?"You":"The computer";
-  const nextName=match.battingSide==="player"?"the computer":"you";
-  announce(null,battedFirstName+" scored "+inn.runs+"/"+inn.wickets+". Target for "+nextName+" is "+match.target+" runs.",{urgent:true});
- }else{
-  finishMatch();
- }
-}
-function startSecondInnings(){
- match.currentInnings=2;
- match.battingSide=match.battingFirst==="player"?"ai":"player";
- match.stage="innings";
- match.bowlStreakWickets=0;
- announce(null,"Second innings begins. "+(match.battingSide==="player"?"You are batting":"You are bowling")+". Target: "+match.target+" runs.",{urgent:true});
- render();
-}
-
-function finishMatch(){
- const playerInn=match.player,aiInn=match.ai;
- let win;
- if(match.battingFirst==="player"){
-  win=aiInn.runs<match.target; // AI failed to chase
- }else{
-  win=playerInn.runs>=match.target; // player successfully chased
- }
- const rewardFinal=win?(300+Math.min(200,playerInn.runs*2)):Math.max(80,80+Math.floor(playerInn.runs/2));
- let xp=win?100:50;
- if(playerInn.runs>=100)xp+=50;else if(playerInn.runs>=50)xp+=20;
- if(match.hatTrick)xp+=40;
-
- player.matches++;
- win?player.wins++:player.losses++;
- player.runs+=playerInn.runs;
- player.wickets+=aiInn.wickets; // wickets the player has taken while bowling
- player.balance+=rewardFinal;
- player.xp+=xp;
-
- let leveledUp=false;
- while(player.xp>=xpNeeded(player.level)){
-  player.xp-=xpNeeded(player.level);
-  player.level++;
-  player.balance+=250;
-  leveledUp=true;
- }
-
- const summary={
-  date:Date.now(),
-  result:win?"WIN":"LOSS",
-  yourRuns:playerInn.runs,yourWickets:playerInn.wickets,
-  aiRuns:aiInn.runs,aiWickets:aiInn.wickets,
-  wicketsTaken:aiInn.wickets,
-  reward:rewardFinal,xp:xp,
-  battingFirst:match.battingFirst
- };
- player.history.push(summary);
- if(player.history.length>100)player.history.shift();
-
- match.bestInningsRuns=Math.max(playerInn.runs,aiInn.runs);
- const newAch=checkAchievements(match);
-
- match.done=true;
- match.win=win;
- match.reward=rewardFinal;
- match.xpGain=xp;
- match.newAchievements=newAch;
-
- pushCloud();
-
- const resultLine=win?"YOU WON the match! Final score — you "+playerInn.runs+"/"+playerInn.wickets+", computer "+aiInn.runs+"/"+aiInn.wickets+". Reward ₹"+rewardFinal+".":
-  "Match over. You "+playerInn.runs+"/"+playerInn.wickets+", computer "+aiInn.runs+"/"+aiInn.wickets+". Your wallet was not reduced. Reward ₹"+rewardFinal+".";
- announce(win?"win":"lose",resultLine,{urgent:true});
- if(leveledUp)setTimeout(()=>announce(null,"Level up! You are now level "+player.level+". Bonus ₹250 added.",{urgent:true}),1200);
- newAch.forEach((a,i)=>setTimeout(()=>announce(null,"Achievement unlocked: "+a.name+".",{urgent:true}),1800+i*900));
-}
-
-/* ================== RENDER: shared pieces ================== */
-function navBar(){
- const items=[["home","🏠 Home"],["match","🏏 Play Match"],["profile","👤 Profile"],["shop","🛒 Shop"],["settings","⚙️ Settings"]];
- return '<nav class="nav" aria-label="Main navigation">'+items.map(([id,label])=>
-  '<button class="secondary" data-act="nav" data-arg="'+id+'" aria-current="'+(page===id?"true":"false")+'">'+label+'</button>'
- ).join("")+'</nav>';
-}
-function walletBadge(){return '<div class="wallet" aria-label="Wallet balance '+player.balance+' rupees">₹'+player.balance+'</div>';}
-function shell(inner){
- root.innerHTML=
-  '<div class="wrap">'+
-   '<header class="top">'+
-    '<div class="brand">🏏 Blind Cricket Pro Ultimate<small>Signed in as '+esc(player.name||"Guest")+'</small></div>'+
-    walletBadge()+
-   '</header>'+
-   (toast?'<div class="notice ok" role="status">'+esc(toast)+'</div>':'')+
-   '<main class="screen">'+inner+'</main>'+
-  '</div>';
- toast="";
-}
-
-/* ================== RENDER: auth ================== */
-function authScreen(){
- const isRegister=authMode==="register";
- root.innerHTML=
- '<main class="screen" style="max-width:640px;margin:36px auto">'+
-  '<h1>'+(isRegister?"Create Your Account":"Welcome Back")+'</h1>'+
-  '<p class="muted">Your profile, wallet, levels, matches and shop progress are saved to your account and also kept on this device.</p>'+
-  '<form id="auth-form" class="form" aria-label="'+(isRegister?"Registration form":"Login form")+'">'+
-   (isRegister?'<label for="f-name">Player name<input id="f-name" name="name" placeholder="Player name" autocomplete="name" required></label>':'')+
-   '<label for="f-email">Email address<input id="f-email" name="email" type="email" placeholder="Email address" autocomplete="email" required></label>'+
-   '<label for="f-pass">Password<input id="f-pass" name="password" type="password" minlength="6" placeholder="Password" autocomplete="'+(isRegister?"new-password":"current-password")+'" required></label>'+
-   '<button type="submit">'+(isRegister?"Create Account":"Login")+'</button>'+
-  '</form>'+
-  '<div class="row" style="margin-top:12px">'+
-   '<button class="secondary" data-act="google">Continue with Google</button>'+
-   '<button class="secondary" data-act="forgot">Forgot Password?</button>'+
-  '</div>'+
-  '<div class="row" style="margin-top:12px">'+
-   '<button class="secondary" data-act="toggle-mode">'+(isRegister?"Back to Login":"Create an Account")+'</button>'+
-   '<button class="secondary" data-act="guest">Play Offline as Guest</button>'+
-  '</div>'+
-  (formMsg?'<div class="notice ok" role="status">'+esc(formMsg)+'</div>':'')+
-  (formError?'<div class="notice err" role="alert">'+esc(formError)+'</div>':'')+
- '</main>';
-}
-
-/* ================== RENDER: home ================== */
-function homeScreen(){
- return navBar()+
-  '<h1>Welcome, '+esc(player.name)+' 👋</h1>'+
-  '<p class="muted">Your complete accessible cricket hub. Choose an option below.</p>'+
-  '<div class="grid menu" role="group" aria-label="Main menu">'+
-   '<button data-act="nav" data-arg="match" aria-label="Play a cricket match">🏏 Play Match</button>'+
-   '<button data-act="nav" data-arg="profile" aria-label="View your profile and statistics">👤 Profile</button>'+
-   '<button data-act="nav" data-arg="shop" aria-label="Visit the equipment shop">🛒 Shop</button>'+
-   '<button data-act="nav" data-arg="settings" aria-label="Open settings">⚙️ Settings</button>'+
-  '</div>'+
-  '<div class="grid" style="margin-top:16px">'+
-   '<div class="card"><span class="muted">Level</span><div class="stat">'+player.level+'</div></div>'+
-   '<div class="card"><span class="muted">Wins</span><div class="stat">'+player.wins+'</div></div>'+
-   '<div class="card"><span class="muted">Wickets Taken</span><div class="stat">'+player.wickets+'</div></div>'+
-   '<div class="card"><span class="muted">Wallet</span><div class="stat">₹'+player.balance+'</div></div>'+
-  '</div>'+
-  (fbAuth.currentUser?'<p style="margin-top:16px"><button class="ghost" data-act="logout">Log out</button></p>':'<p style="margin-top:16px" class="muted">Playing as a guest. <button class="linklike" data-act="nav" data-arg="__login">Log in or create an account</button> to save progress online.</p>');
-}
-
-/* ================== RENDER: profile ================== */
-function profileScreen(){
- const pct=Math.round((player.xp/xpNeeded(player.level))*100);
- const levelCount=Math.max(10,player.level+2);
- const statCards=[["Matches",player.matches],["Wins",player.wins],["Losses",player.losses],["Total Runs",player.runs],["Wickets Taken",player.wickets],["Fours",player.fours],["Sixes",player.sixes]];
- const historyHtml=player.history.length?
-  player.history.slice().reverse().slice(0,20).map(h=>
-   '<div class="card" style="margin:8px 0"><span class="tag '+(h.result==="WIN"?"win":"loss")+'">'+h.result+'</span> — You '+h.yourRuns+'/'+h.yourWickets+' vs Computer '+h.aiRuns+'/'+h.aiWickets+' — Reward ₹'+h.reward+' — XP +'+h.xp+'<br><span class="muted small">'+fmtWhen(h.date)+'</span></div>'
-  ).join(""):'<p class="muted">No matches played yet.</p>';
- const achHtml=ACHIEVEMENTS.map(a=>{
-  const unlocked=player.achievements.includes(a.id);
-  return '<div class="card achv '+(unlocked?"unlocked":"")+'"><h3>'+(unlocked?"🏆":"🔒")+' '+esc(a.name)+'</h3><p class="muted small">'+esc(a.desc)+'</p></div>';
- }).join("");
- const levelsHtml=Array.from({length:levelCount},(_,i)=>{
-  const lvl=i+1,unlocked=lvl<=player.level;
-  return '<div class="card"><b>Level '+lvl+'</b><p><span class="tag '+(unlocked?"":"locked")+'">'+(unlocked?"✅ Unlocked":"🔒 Locked")+'</span></p></div>';
- }).join("");
- return navBar()+
-  '<h1>👤 Profile</h1>'+
-  '<div class="grid">'+
-   '<div class="card"><h3>'+esc(player.name)+'</h3><p class="muted">'+esc(player.email||"Offline guest player")+'</p></div>'+
-   '<div class="card"><h3>Wallet</h3><div class="stat">₹'+player.balance+'</div><p class="muted small">Losing a match never reduces your balance.</p></div>'+
-  '</div>'+
-  '<div class="card" style="margin-top:14px">'+
-   '<h3>Level '+player.level+'</h3>'+
-   '<div class="bar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100" aria-label="Level progress, '+pct+' percent"><i style="width:'+pct+'%"></i></div>'+
-   '<p>'+player.xp+' / '+xpNeeded(player.level)+' XP to next level</p>'+
-  '</div>'+
-  '<h2>Statistics</h2>'+
-  '<div class="grid tight">'+statCards.map(([l,v])=>'<div class="card"><span class="muted small">'+l+'</span><div class="stat">'+v+'</div></div>').join("")+'</div>'+
-  '<h2>Levels</h2><div class="grid tight">'+levelsHtml+'</div>'+
-  '<h2>Achievements</h2><div class="grid">'+achHtml+'</div>'+
-  '<h2>Match History</h2><div class="log">'+historyHtml+'</div>';
-}
-
-/* ================== RENDER: shop ================== */
-function shopScreen(){
- const catalogHtml=SHOP.map(item=>{
-  const owned=player.inventory[item.id];
-  const canAfford=player.balance>=item.price;
-  return '<div class="card"><h3>'+item.icon+' '+esc(item.name)+'</h3><p class="muted small">'+esc(item.desc)+'</p>'+
-   '<p>Price: ₹'+item.price+' &nbsp;•&nbsp; Durability: '+item.durability+'</p>'+
-   (owned?'<p class="tag">Owned — '+owned.durability+'/'+(owned.maxDurability||item.durability)+' durability left</p>':'')+
-   '<button data-act="buy" data-arg="'+item.id+'" '+(canAfford?"":"disabled")+' aria-label="Buy '+esc(item.name)+' for '+item.price+' rupees">'+(owned?"Buy Another":"Buy")+'</button>'+
-  '</div>';
- }).join("");
- const ownedIds=Object.keys(player.inventory);
- const inventoryHtml=ownedIds.length?ownedIds.map(id=>{
-  const item=findShopItem(id);const v=player.inventory[id];
-  const max=v.maxDurability||item.durability;
-  const p=Math.round((v.durability/max)*100);
-  const broken=v.durability<=0;
-  return '<div class="card"><h3>'+(item?item.icon+" "+esc(item.name):id)+'</h3>'+
-   (broken?'<p class="notice err" role="status">This item has worn out.</p>':'')+
-   '<div class="bar dur '+(p<30?"low":"")+'" role="progressbar" aria-valuenow="'+p+'" aria-valuemin="0" aria-valuemax="100" aria-label="'+(item?item.name:id)+' durability '+p+' percent"><i style="width:'+p+'%"></i></div>'+
-   '<p class="muted small">'+v.durability+' / '+max+' durability</p>'+
-   (broken?'<button data-act="repair" data-arg="'+id+'" '+(player.balance<1?"disabled":"")+' aria-label="Repair '+(item?item.name:id)+' for 1 rupee">Repair for ₹1</button>':'<span class="tag">Ready to use</span>')+
-  '</div>';
- }).join(""):'<p class="muted">You have not purchased any items yet.</p>';
- return navBar()+
-  '<h1>🛒 Shop</h1>'+
-  '<p>Wallet: <b>₹'+player.balance+'</b>. Items you cannot afford are disabled.</p>'+
-  '<div class="grid">'+catalogHtml+'</div>'+
-  '<h2>My Items</h2><div class="grid">'+inventoryHtml+'</div>';
-}
-
-/* ================== RENDER: settings ================== */
-function settingsScreen(){
- const s=player.settings;
- const commentatorOptions=Object.entries(MANIFEST).map(([id,pack])=>
-  '<option value="'+id+'" '+(s.commentator===id?"selected":"")+'>'+esc(pack.label)+' ('+esc(pack.lang)+')</option>'
- ).join("");
- return navBar()+
-  '<h1>⚙️ Settings</h1>'+
-  '<div class="form">'+
-   '<label><input id="set-tts" type="checkbox" '+(s.tts?"checked":"")+'> Text-to-speech announcements</label>'+
-   '<label><input id="set-commentary" type="checkbox" '+(s.commentary?"checked":"")+'> Play recorded commentary audio</label>'+
-   '<label><input id="set-sfx" type="checkbox" '+(s.sfx?"checked":"")+'> Sound effects (dot ball / boundary / wicket chimes)</label>'+
-   '<label for="set-commentator">Commentator voice pack'+
-    '<select id="set-commentator">'+commentatorOptions+'</select>'+
-   '</label>'+
-   '<label for="set-cvol">Commentary volume<input id="set-cvol" type="range" min="0" max="1" step="0.1" value="'+s.commentaryVolume+'"></label>'+
-   '<label for="set-svol">Sound effects volume<input id="set-svol" type="range" min="0" max="1" step="0.1" value="'+s.sfxVolume+'"></label>'+
-   '<div class="row">'+
-    '<button data-act="save-settings">Save Settings</button>'+
-    '<button class="secondary" data-act="test-tts">Test TTS</button>'+
-   '</div>'+
-   '<hr style="border-color:#2c4868;width:100%">'+
-   '<button class="danger" data-act="logout">Logout</button>'+
-  '</div>';
-}
-
-/* ================== RENDER: match ================== */
-function matchScreen(){
- if(!match)return navBar()+
-  '<h1>🏏 Play Match</h1>'+
-  '<div class="card"><h2>Quick Match</h2><p>'+OVERS_PER_INNINGS+' overs each side ('+TOTAL_BALLS+' balls) • Toss • Bat and bowl • AI opponent • Full commentary.</p>'+
-  '<button data-act="start-match">Start Match</button></div>';
-
- if(match.stage==="toss")return navBar()+
-  '<h1>🏏 Toss</h1><div class="commentary" aria-live="off">'+esc(commentaryText)+'</div>'+
-  '<h2>Call the coin</h2><div class="row">'+
-   '<button data-act="toss-call" data-arg="heads">Call Heads</button>'+
-   '<button data-act="toss-call" data-arg="tails">Call Tails</button>'+
-  '</div>';
-
- if(match.stage==="waiting-ai-decision")return navBar()+
-  '<h1>🏏 Toss</h1><div class="commentary">'+esc(commentaryText)+'</div><p class="muted">Starting innings…</p>';
-
- if(match.stage==="decision")return navBar()+
-  '<h1>🏏 You Won the Toss!</h1><div class="commentary">'+esc(commentaryText)+'</div>'+
-  '<h2>What would you like to do?</h2><div class="row">'+
-   '<button data-act="choose" data-arg="bat">Bat First</button>'+
-   '<button data-act="choose" data-arg="bowl">Bowl First</button>'+
-  '</div>';
-
- if(match.stage==="innings-break"){
-  const firstBatterWasPlayer=match.battingFirst==="player";
-  const firstScore=firstBatterWasPlayer?match.player:match.ai;
-  const firstLabel=firstBatterWasPlayer?"You":"Computer";
-  const secondLabel=firstBatterWasPlayer?"Computer":"You";
-  return navBar()+
-   '<h1>🏏 End of Innings 1</h1><div class="commentary">'+esc(commentaryText)+'</div>'+
-   '<div class="scoreboard">'+
-    '<div class="card"><span class="muted">'+firstLabel+' (Innings 1)</span><div class="stat">'+firstScore.runs+'/'+firstScore.wickets+'</div></div>'+
-    '<div class="card"><span class="muted">Target for '+secondLabel+'</span><div class="stat">'+match.target+'</div></div>'+
-   '</div>'+
-   '<button data-act="start-second-innings">Start Second Innings</button>';
- }
-
- if(match.stage==="innings"){
-  const battingIsPlayer=match.battingSide==="player";
-  const inn=activeInnings();
-  const overStr=Math.floor(inn.balls/BALLS_PER_OVER)+"."+(inn.balls%BALLS_PER_OVER);
-  const controls=battingIsPlayer?
-   '<h2>Choose Your Shot</h2><div class="shots" role="group" aria-label="Choose your shot">'+
-    Object.keys(SHOT_TABLE).map(k=>'<button data-act="bat" data-arg="'+k+'" aria-label="Play '+SHOT_LABEL[k]+'">'+SHOT_LABEL[k]+'</button>').join("")+
-   '</div>':
-   '<h2>Choose Your Delivery</h2><div class="deliveries" role="group" aria-label="Choose your delivery">'+
-    Object.keys(DELIVERY_TABLE).map(k=>'<button data-act="bowl" data-arg="'+k+'" aria-label="Bowl a '+DELIVERY_LABEL[k]+'">'+DELIVERY_LABEL[k]+'</button>').join("")+
-   '</div>';
-  return navBar()+
-   '<h1>🏏 '+(match.currentInnings===1?"Innings 1":"Innings 2")+' — '+(battingIsPlayer?"You are Batting":"You are Bowling")+'</h1>'+
-   '<div class="scoreboard">'+
-    '<div class="card"><span class="muted">Score</span><div class="stat">'+inn.runs+'/'+inn.wickets+'</div></div>'+
-    '<div class="card"><span class="muted">Over</span><div class="stat">'+overStr+'</div><span class="muted small">of '+OVERS_PER_INNINGS+'</span></div>'+
-    (match.target!==null?'<div class="card"><span class="muted">Target</span><div class="stat">'+match.target+'</div></div>':'')+
-   '</div>'+
-   '<div class="commentary" aria-live="off">'+esc(commentaryText)+'</div>'+
-   controls;
- }
-
- if(match.done){
-  const newAch=match.newAchievements||[];
-  return navBar()+
-   '<h1>🏆 Match Result</h1>'+
-   '<div class="card"><div class="stat">'+(match.win?"YOU WON!":"MATCH OVER")+'</div>'+
-    '<p>You: '+match.player.runs+'/'+match.player.wickets+' &nbsp; Computer: '+match.ai.runs+'/'+match.ai.wickets+'</p>'+
-    '<p>Reward: ₹'+match.reward+' &nbsp; XP gained: +'+match.xpGain+'</p>'+
-    (newAch.length?'<p>New achievements: '+newAch.map(a=>esc(a.name)).join(", ")+'</p>':'')+
-   '</div>'+
-   '<div class="row" style="margin-top:14px">'+
-    '<button data-act="play-again">Play Again</button>'+
-    '<button class="secondary" data-act="nav" data-arg="profile">View Profile</button>'+
-   '</div>';
- }
- return navBar()+'<p class="muted">Loading…</p>';
-}
-
-/* ================== RENDER: dispatch ================== */
+function nav(){return '<div class="nav"><button class="secondary" data-p="home">Home</button><button class="secondary" data-p="match">Play Match</button><button class="secondary" data-p="profile">Profile</button><button class="secondary" data-p="shop">Shop</button><button class="secondary" data-p="settings">Settings</button></div>'}
+function shell(c){root.innerHTML='<div class="wrap"><header class="top"><div class="brand">🏏 Blind Cricket Pro Ultimate</div><div class="wallet">Wallet ₹'+player.balance+'</div></header>'+(msg?'<div class="notice">'+e(msg)+'</div>':'')+'<main class="screen">'+c+'</main></div>';bind()}
+function authScreen(){root.innerHTML='<main class="screen" style="max-width:650px;margin:30px auto"><h1>Blind Cricket Pro Ultimate</h1><p class="muted">Sign in to save your profile, wallet, career progress and shop items.</p><button id="google" style="width:100%;min-height:52px;font-size:17px">Continue with Google</button>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';bind()}
+function loadingScreen(){root.innerHTML='<main class="screen" style="max-width:650px;margin:30px auto" aria-busy="true"><h1>Blind Cricket Pro Ultimate</h1><p class="muted">Checking your sign-in status…</p></main>'}
+function onboarding(){root.innerHTML='<main class="screen" style="max-width:650px;margin:30px auto"><h1>Welcome, '+e(player.name)+'!</h1><p class="muted">A few quick details to set up your profile.</p><form id="obf" class="form"><label>Name<input value="'+e(player.name)+'" disabled></label><label>Email<input value="'+e(player.email)+'" disabled></label><label>Village/City<input id="ob_village" placeholder="Village or city"></label><label>State<input id="ob_state" placeholder="State"></label><label>Age<input id="ob_age" type="number" min="12" max="40" placeholder="12-40"></label><label>Blind Category<select id="ob_cat"><option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option></select></label><label>Role<select id="ob_role"><option>Batsman</option><option>Bowler</option><option>Allrounder</option><option>Wicketkeeper</option></select></label><button>Save and Continue</button></form>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';bind()}
+function home(){return nav()+'<h1>Welcome, '+e(player.name)+' 👋</h1><p class="muted">Your complete cricket hub.</p><div class="grid menu"><button data-p="match">🏏 Play Match</button><button data-p="profile">👤 Profile</button><button data-p="shop">🛒 Shop</button><button data-p="settings">⚙️ Settings</button></div><div class="grid" style="margin-top:15px"><div class="card"><span class="muted">Level</span><div class="stat">'+player.level+'</div></div><div class="card"><span class="muted">Wins</span><div class="stat">'+player.wins+'</div></div><div class="card"><span class="muted">Wickets</span><div class="stat">'+player.wickets+'</div></div></div>'}
+function profile(){let p=Math.round(player.xp/need()*100);return nav()+'<h1>👤 Profile</h1><div class="grid"><div class="card"><h3>'+e(player.name)+'</h3><p>'+e(player.email||"Offline player")+'</p></div><div class="card"><h3>Wallet</h3><div class="stat">₹'+player.balance+'</div><p class="muted">Losses never deduct money.</p></div></div><div class="card" style="margin-top:14px"><h3>Level '+player.level+'</h3><div class="bar"><i style="width:'+p+'%"></i></div><p>'+player.xp+'/'+need()+' XP</p></div><div class="grid" style="margin-top:14px">'+[["Matches",player.matches],["Wins",player.wins],["Losses",player.losses],["Runs",player.runs],["Wickets",player.wickets]].map(a=>'<div class="card"><span class="muted">'+a[0]+'</span><div class="stat">'+a[1]+'</div></div>').join("")+'</div><h2>Levels</h2><div class="grid">'+Array.from({length:Math.max(8,player.level+2)},(_,i)=>'<div class="card"><b>Level '+(i+1)+'</b><p>'+(i+1<=player.level?"✅ Unlocked":"🔒 Locked")+'</p></div>').join("")+'</div><h2>Match History</h2><div class="log">'+(player.history.length?player.history.slice().reverse().map(h=>'<div class="card" style="margin:8px 0"><b>'+e(h.result)+'</b> — '+h.runs+'/'+h.wickets+' — Reward ₹'+h.reward+'<br><span class="muted">'+new Date(h.date).toLocaleString()+'</span></div>').join(""):"<p class='muted'>No matches yet.</p>")+'</div>'}
+function shopView(){return nav()+'<h1>🛒 Shop</h1><p>Wallet: <b>₹'+player.balance+'</b>. Items above your balance cannot be bought.</p><div class="grid">'+shop.map(i=>{let v=player.inventory[i[0]];return '<div class="card"><h3>'+i[1]+'</h3><p>Price: ₹'+i[2]+'</p><p>Durability: '+(v?v.dur:0)+'/'+i[3]+'</p><button data-buy="'+i[0]+'" '+(player.balance<i[2]?"disabled":"")+'>'+(v?"Buy Again":"Buy")+'</button></div>'}).join("")+'</div><h2>My Items</h2><div class="grid">'+(Object.keys(player.inventory).length?Object.entries(player.inventory).map(a=>{let i=shop.find(x=>x[0]==a[0]);return '<div class="card"><b>'+e(i?.[1]||a[0])+'</b><p>Durability: '+a[1].dur+'</p>'+(a[1].dur<=0?'<button data-repair="'+a[0]+'" '+(player.balance<1?"disabled":"")+'>Repair for ₹1</button>':'<span class="tag">Ready</span>')+'</div>'}).join(""):"<p class='muted'>No items purchased.</p>")+'</div>'}
+function settings(){return nav()+'<h1>⚙️ Settings</h1><div class="form"><label><input id="tts" type="checkbox" '+(player.settings.tts?"checked":"")+'> TTS</label><label><input id="com" type="checkbox" '+(player.settings.commentary?"checked":"")+'> Match commentary</label><label><input id="sfx" type="checkbox" '+(player.settings.sfx?"checked":"")+'> Sound effects</label><label>Voice volume <input id="vol" type="range" min="0" max="1" step=".1" value="'+player.settings.volume+'"></label><button id="saveSet">Save Settings</button><button class="secondary" id="test">Test TTS</button><button class="danger" id="logout">Logout</button></div>'}
+function matchView(){
+ if(!match)return nav()+'<h1>🏏 Play Match</h1><div class="card"><h2>Quick Match</h2><p>12 balls • AI opponent • TTS commentary.</p><button id="start">Start Match</button></div>';
+ if(match.done)return nav()+'<h1>🏆 Match Result</h1><div class="card"><div class="stat">'+(match.win?"YOU WON!":"MATCH OVER")+'</div><p>Score: '+match.runs+'/'+match.wickets+'</p><p>Reward: ₹'+match.reward+'</p><button id="again">Play Again</button></div>';
+ return nav()+'<h1>🏏 Match</h1><div class="grid"><div class="card"><span class="muted">Score</span><div class="stat">'+match.runs+'/'+match.wickets+'</div><p>Ball '+match.ball+'/12</p></div><div class="card"><span class="muted">Target</span><div class="stat">'+match.target+'</div></div></div><div class="commentary" aria-live="polite"><b>Commentary</b><br>'+e(match.text)+'</div><h2>Choose Shot</h2><div class="shots"><button data-shot="0">Defend</button><button data-shot="1">1 Run</button><button data-shot="2">2 Runs</button><button data-shot="4">4 Runs</button><button data-shot="6">6 Runs</button></div>'}
 function render(){
- const guest=localStorage.getItem(GUEST_KEY)==="1";
- if(!fbAuth.currentUser&&!guest){authScreen();return;}
- let inner;
- switch(page){
-  case "profile":inner=profileScreen();break;
-  case "shop":inner=shopScreen();break;
-  case "settings":inner=settingsScreen();break;
-  case "match":inner=matchScreen();break;
-  default:inner=homeScreen();
- }
- shell(inner);
+ if(booting){loadingScreen();return}
+ if(!auth.currentUser){authScreen();return}
+ if(page=="onboarding"){onboarding();return}
+ let c=page=="home"?home():page=="profile"?profile():page=="shop"?shopView():page=="settings"?settings():matchView();
+ shell(c);
 }
-
-/* ================== EVENT DELEGATION (bound once — no duplicate handlers) ================== */
-document.addEventListener("submit",ev=>{
- if(ev.target&&ev.target.id==="auth-form")doLoginOrRegister(ev);
-});
-
-document.addEventListener("click",ev=>{
- const btn=ev.target.closest("[data-act]");
- if(!btn)return;
- const act=btn.dataset.act;
- const arg=btn.dataset.arg;
- switch(act){
-  case "nav":
-   if(arg==="__login"){localStorage.removeItem(GUEST_KEY);render();return;}
-   page=arg;formError="";formMsg="";render();break;
-  case "google":doGoogle();break;
-  case "forgot":doForgotPassword();break;
-  case "toggle-mode":authMode=authMode==="login"?"register":"login";formError="";formMsg="";render();break;
-  case "guest":doPlayOffline();break;
-  case "logout":doLogout();break;
-  case "buy":buyItem(arg);break;
-  case "repair":repairItem(arg);break;
-  case "start-match":startMatch();break;
-  case "toss-call":callToss(arg);break;
-  case "choose":chooseBatOrBowl(arg);break;
-  case "start-second-innings":startSecondInnings();break;
-  case "bat":playerBats(arg);break;
-  case "bowl":playerBowls(arg);break;
-  case "play-again":match=null;startMatch();break;
-  case "save-settings":saveSettings();break;
-  case "test-tts":speak("Blind Cricket Pro Ultimate. Text to speech is working correctly.",true);break;
- }
-});
-
-function saveSettings(){
- player.settings.tts=document.getElementById("set-tts").checked;
- player.settings.commentary=document.getElementById("set-commentary").checked;
- player.settings.sfx=document.getElementById("set-sfx").checked;
- player.settings.commentator=document.getElementById("set-commentator").value;
- player.settings.commentaryVolume=parseFloat(document.getElementById("set-cvol").value);
- player.settings.sfxVolume=parseFloat(document.getElementById("set-svol").value);
- toast="Settings saved.";
- speak(toast,true);
- pushCloud();
+async function google(){err="";try{await signInWithRedirect(auth,new GoogleAuthProvider())}catch(x){err=friendlyAuthError(x);render()}}
+async function saveOnboarding(ev){
+ ev.preventDefault();
+ player.village=document.getElementById("ob_village").value.trim();
+ player.state=document.getElementById("ob_state").value.trim();
+ player.age=+document.getElementById("ob_age").value||null;
+ player.blindCategory=document.getElementById("ob_cat").value;
+ player.role=document.getElementById("ob_role").value;
+ await pushCloud();
+ msg="Saved to Online ✓";
+ page="home";
+ announce(msg,true);
  render();
 }
-
-/* Attach pack ids onto MANIFEST entries for easy lookup in pickClip() */
-Object.keys(MANIFEST).forEach(id=>{MANIFEST[id].id=id;});
-
-/* ================== BOOT ================== */
+function buy(id){let i=shop.find(x=>x[0]==id);if(player.balance<i[2])return;player.balance-=i[2];player.inventory[id]={dur:i[3]};pushCloud();msg=i[1]+" purchased.";speak(msg);render()}
+function repair(id){let i=shop.find(x=>x[0]==id),v=player.inventory[id];if(!i||!v||v.dur>0||player.balance<1)return;player.balance--;v.dur=i[3];pushCloud();msg=i[1]+" repaired for ₹1.";speak(msg);render()}
+function start(){match={runs:0,wickets:0,ball:0,target:12+Math.floor(Math.random()*13),text:"Match started. Choose your shot.",done:false};render();speak("Match started. Choose your shot.")}
+function shot(n){let out=Math.random()<.13;match.ball++;if(out){match.wickets++;match.text="OUT! Wicket.";speak(match.text)}else{match.runs+=n;match.text=n==6?"SIX!":n==4?"FOUR!":n+" run"+(n==1?"":"s")+" completed.";speak(match.text)}wear();if(match.runs>=match.target||match.ball>=12||match.wickets>=3)finish();else render()}
+function wear(){let ids=Object.keys(player.inventory).filter(x=>player.inventory[x].dur>0);if(!ids.length)return;let id=ids[Math.floor(Math.random()*ids.length)];player.inventory[id].dur--;if(player.inventory[id].dur==0){let i=shop.find(x=>x[0]==id);match.text+=" "+i[1]+" has worn out. Repair it in Shop for ₹1.";speak(i[1]+" has worn out. Repair it for one rupee in the shop.")}pushCloud()}
+function finish(){let win=match.runs>=match.target,reward=win?250:100;player.matches++;win?player.wins++:player.losses++;player.runs+=match.runs;player.wickets+=match.wickets;player.balance+=reward;player.xp+=win?80:40;while(player.xp>=need()){player.xp-=need();player.level++;player.balance+=250}player.history.push({date:Date.now(),result:win?"WIN":"LOSS",runs:match.runs,wickets:match.wickets,reward});pushCloud();match={...match,done:true,win,reward};render();speak(win?"You won the match!":"Match lost. Your wallet was not reduced.")}
+function bind(){
+ document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{page=b.dataset.p;msg="";render()});
+ let g=document.getElementById("google");if(g)g.onclick=google;
+ let obf=document.getElementById("obf");if(obf)obf.onsubmit=saveOnboarding;
+ let st=document.getElementById("start");if(st)st.onclick=start;
+ let ag=document.getElementById("again");if(ag)ag.onclick=()=>{match=null;start()};
+ document.querySelectorAll("[data-shot]").forEach(b=>b.onclick=()=>shot(+b.dataset.shot));
+ document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buy(b.dataset.buy));
+ document.querySelectorAll("[data-repair]").forEach(b=>b.onclick=()=>repair(b.dataset.repair));
+ let s=document.getElementById("saveSet");if(s)s.onclick=()=>{player.settings.tts=document.getElementById("tts").checked;player.settings.commentary=document.getElementById("com").checked;player.settings.sfx=document.getElementById("sfx").checked;player.settings.volume=+document.getElementById("vol").value;pushCloud();msg="Settings saved.";render()};
+ let tt=document.getElementById("test");if(tt)tt.onclick=()=>speak("Blind Cricket Pro Ultimate. TTS is working.");
+ let lo=document.getElementById("logout");if(lo)lo.onclick=async()=>{
+  // signOut only clears the local session state; it never touches the
+  // Firestore players/{uid} document, so progress is intact on next login.
+  await signOut(auth);
+  clearLocalSession();
+  player={...base};
+  page="home";
+  render();
+ };
+}
 render();
-
-</script>
-</body>
-</html>
+</script></body></html>
