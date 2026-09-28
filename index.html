@@ -68,6 +68,51 @@ input,select{padding:12px;border-radius:10px;border:1px solid #385675;background
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:8px;border-bottom:1px solid #223752;font-size:13px}
 @media(max-width:600px){.shots{grid-template-columns:repeat(2,1fr)}.screen{padding:14px}.logo-text{font-size:24px}}
+
+/* Cricket identity: deep stadium green, warm ivory and scoreboard gold. */
+:root{--field:#071d1b;--panel:#0d2926;--panel-edge:#286451;--gold:#f3c964;--ink:#f7f8ee;--quiet:#c7d9d0;--lime:#98e4a8}
+body{background:radial-gradient(ellipse at 50% -12%,#176248 0%,#0a3029 40%,#061b1a 85%);color:var(--ink);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1040px;padding-bottom:48px}
+.topbar{background:#09241f;border-bottom:2px solid var(--gold);height:70px;padding:0 20px}
+.tb-sub,.muted{color:var(--quiet)}
+.iconbtn{background:#164336;border-color:var(--gold);min-width:48px;min-height:48px}
+button,.pill.active{min-height:48px;background:#9ee2a7;color:#09231c;border:2px solid #b1f4b9;border-radius:12px;font-size:16px;font-weight:800}
+button:hover:not(:disabled){filter:brightness(1.08)}
+button.secondary,.pill{background:#153b33;color:#f9faf2;border:2px solid #7ab797}
+button.danger{background:#882d3a;color:#fff;border:2px solid #ffb2b8}
+button:disabled{opacity:.55}
+input,select{min-height:48px;background:#08231f;color:#fff;border:2px solid #78ad98;font-size:16px;max-width:100%}
+input[type=checkbox]{min-height:22px;width:22px;height:22px;vertical-align:middle}
+label{display:block;line-height:1.55;margin-bottom:8px}
+label input:not([type=checkbox]),label select{display:block;width:100%;margin-top:5px}
+:focus-visible{outline:4px solid var(--gold);outline-offset:3px}
+.screen,.card{background:var(--panel);border:1.5px solid var(--panel-edge);box-shadow:0 8px 28px #020c0b55}
+.screen{margin:20px 14px;padding:24px;border-radius:20px}
+.card{padding:20px;border-radius:16px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.02em}h1{font-size:clamp(1.65rem,5vw,2.3rem);margin-top:0;color:#fff7dc}h2{color:var(--gold);margin-top:1.3em}
+p{max-width:75ch}
+.grid{gap:16px}
+.logo-wrap{padding:34px 16px 12px}
+ .logo-emoji{font-family:system-ui,sans-serif;font-weight:900;font-size:20px;letter-spacing:2px;min-height:38px;color:#0b3025;background:#f3c964;border-radius:50%;width:44px;height:44px;line-height:44px;margin:0 auto}.logo-text{background:linear-gradient(#fff1b5,#f0c256);-webkit-background-clip:text;background-clip:text;text-shadow:none}
+.logo-base{background:linear-gradient(90deg,#166c51,#f4d477,#166c51)}
+.sheet{background:#f8f8ed;color:#10271d;border-radius:24px;margin:20px 14px 0;padding:25px;min-height:unset;box-shadow:0 15px 35px #0008}
+.sheet .muted{color:#355346}
+.sheet button.secondary{background:#184338;color:#fff}
+.bigbtn{background:#e8f4e9;border:2px solid #90b8a1;min-height:80px;margin-bottom:16px}
+.bigbtn b{color:#133c2f;font-size:18px}.bigbtn span{color:#284e40;font-size:15px}
+.sheet .card{color:var(--ink)}
+.sheet .badge{background:#134a3b;color:#fff2b5;border-color:#134a3b}
+.badge{background:#173e34;color:var(--gold);border-color:var(--gold);font-size:13px}
+.stat{color:#fff0bd;font-variant-numeric:tabular-nums}
+.commentary{background:#061d19;border:2px solid #71ac8c;font-size:18px;line-height:1.6}
+.shots{gap:12px}.shots button{min-height:68px;font-size:18px}
+.nav,.row{gap:10px}.nav button{min-width:110px}
+.notice{background:#194b3b;border-left:4px solid var(--gold)}
+.tag{background:#1d4e40;font-size:13px}
+.levelcard.unlocked{border-left-color:#9ee2a7}.levelcard.current{border-left-color:var(--gold);background:#184236}
+.modal{background:#0c2a24;border:2px solid var(--gold);max-height:90vh;overflow-y:auto;text-align:left;box-shadow:0 24px 60px #000a}
+.modal h2{text-align:center}
+@media(max-width:600px){.topbar{padding:0 12px}.screen{margin:12px;padding:17px}.card{padding:16px}.sheet{margin:14px 10px 0;padding:18px}.shots{grid-template-columns:repeat(2,minmax(0,1fr))}.row>*{flex:1 1 145px}.nav button{flex:1 1 110px}.logo-text{font-size:clamp(22px,7vw,30px)}.modal{padding:18px}.grid{grid-template-columns:1fr}}
 </style></head><body>
 <a href="#main" class="skip-link">Skip to main content</a>
 <div id="app"></div>
@@ -76,7 +121,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #223752;font-size:13px
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithPopup,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import{getFirestore,doc,getDoc,setDoc,collection,query,limit,startAfter,getDocs,where,runTransaction}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import{getFirestore,doc,getDoc,setDoc,collection,query,limit,startAfter,getDocs,where,runTransaction,deleteDoc,orderBy}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 /* ==================================================================
    1. CORE ENGINE CONFIG
@@ -165,6 +210,7 @@ const ACHIEVEMENTS=[
 {id:"century_maker",name:"Century Maker",desc:"Score 100+ runs in a match.",check:p=>p.centuries>=1},
 {id:"hat_trick_hero",name:"Hat-Trick Hero",desc:"Take a hat-trick.",check:p=>p.hatTricks>=1},
 {id:"big_hitter",name:"Big Hitter",desc:"Hit 10 sixes across your career.",check:p=>p.sixes>=10},
+{id:"ten_sixes_match",name:"Ten Sixes in One Match",desc:"Hit 10 sixes in one match.",check:(p,m)=>m?.playerBatSixes>=10},
 {id:"veteran",name:"Veteran",desc:"Play 50 matches.",check:p=>p.matches>=50},
 {id:"club_bound",name:"Club Bound",desc:"Reach Club level.",check:p=>p.level>=2},
 {id:"state_star",name:"State Star",desc:"Reach State level.",check:p=>p.level>=4},
@@ -212,12 +258,15 @@ const base={
  village:"",state:"",age:null,academy:"",familyBackground:"",blindCategory:"B2",role:"Batsman",
  inventory:{},history:[],achievements:[],
  teamId:"",teamName:"",coach:null,matchCheckpoint:null,squad:[],offlineTournament:null,auction:{budget:5000000,players:[]},
- settings:{...DEFAULT_SETTINGS}
+ settings:{...DEFAULT_SETTINGS},savedPlayers:[],sharePublicProfile:true,shareLeaderboard:false,loginReward:{day:"",streak:0},dailyChallengeDay:"",dailyChallengesWon:0,friendScores:{}
 };
 
 let player=loadLocal(),page="boot",msg="",err="",match=null,menuOpen=false,lastLoadedAuthUid=null;
 let adminRecords=[],adminLastDoc=null,adminAllLoaded=false,adminLoading=false,adminError="",adminSelectedUid=null;
 let incomingTrades=[],outgoingTrades=[],tradeLoading=false,tradeError="";
+let recipientPreview=null,recipientLookupBusy=false,selectedSellItem="";
+let leaderboardRows=[],leaderboardLoadedDay="",leaderboardError="",challengeRows=[],challengeLoading=false,challengeError="",dailyClaimBusy=false;
+let pendingFriendId=null;
 let profileWriteQueue=Promise.resolve(),lastEconomySync={uid:null,balance:0,inventory:{}};
 let economyBusy=false;
 
@@ -229,7 +278,7 @@ function loadLocal(){
  try{
   let raw=JSON.parse(localStorage.getItem("BCPU_PLAYER_V2")||localStorage.getItem("BCPU")||"null");
   if(!raw)return{...base,settings:{...DEFAULT_SETTINGS}};
-  return{...base,...raw,settings:{...DEFAULT_SETTINGS,...(raw.settings||{})},inventory:raw.inventory||{},formatWins:raw.formatWins||{},history:raw.history||[],achievements:raw.achievements||[]};
+  return{...base,...raw,settings:{...DEFAULT_SETTINGS,...(raw.settings||{})},inventory:raw.inventory||{},formatWins:raw.formatWins||{},history:raw.history||[],achievements:raw.achievements||[],savedPlayers:Array.isArray(raw.savedPlayers)?raw.savedPlayers:[],friendScores:raw.friendScores||{}};
  }catch{return{...base,settings:{...DEFAULT_SETTINGS}}}
 }
 function saveLocal(){localStorage.setItem("BCPU_PLAYER_V2",JSON.stringify(player));if(player.uid)localStorage.setItem("blindCricketCurrentUser",player.uid)}
@@ -249,7 +298,7 @@ function resumeMatch(){
  if(!resumableMatch()){msg="No saved match to resume.";page="home";render();return}
  const state=player.matchCheckpoint.state;
  match=JSON.parse(JSON.stringify(state.match));matchSetupState={...matchSetupState,...state.setup};activeCommentaryPack=pickPackForSetting(player.settings.commentator);
- page="match";syncBgm();announce("Match resumed"+(matchSetupState.mode==="tournament"?" against "+opponentLabel(match.opponentTeam):"")+". "+(match.current==="player"?"You are batting.":"You are bowling."),true);render();
+ page="match";pendingFriendId=match.friendChallengeId||null;syncBgm();announce("Match resumed"+(matchSetupState.mode==="tournament"?" against "+opponentLabel(match.opponentTeam):"")+". "+(match.current==="player"?"You are batting.":"You are bowling."),true);render();
 }
 function e(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function need(){return player.level*350}
@@ -341,11 +390,11 @@ function playClip(eventKey,dismissalType){
  let attempt=0;
  commentaryAudio.pause();commentaryAudio.onerror=null;
  try{commentaryAudio.currentTime=0}catch{}
- if(window.speechSynthesis)speechSynthesis.cancel();
+ if(window.speechSynthesis&&player.settings.tts)speechSynthesis.cancel();
  commentaryAudio.volume=player.settings.commentaryVolume??.8;
  function next(){
   if(generation!==clipGeneration)return;
-  if(attempt>=paths.length){commentaryTalking=false;announce("Commentary recording could not play. Text commentary is available.",false);return}
+  if(attempt>=paths.length){commentaryTalking=false;announce("Commentary recording could not play. Text commentary is available.",true);speak(match?.text||"Commentary recording unavailable.");return}
   let handled=false;
   const retry=()=>{if(handled||generation!==clipGeneration)return;handled=true;next()};
   commentaryAudio.onerror=retry;
@@ -355,7 +404,7 @@ function playClip(eventKey,dismissalType){
   if(started?.catch)started.catch(error=>{
    if(generation!==clipGeneration)return;
    if(error.name==="AbortError")return;
-   if(error.name==="NotAllowedError"){commentaryTalking=false;announce("Tap a match control to enable commentary audio.",false);return}
+   if(error.name==="NotAllowedError"){commentaryTalking=false;announce("Commentary audio was blocked on this device. The result is shown in text.",true);speak(match?.text||"Commentary audio unavailable.");return}
    retry();
   });
  }
@@ -431,6 +480,15 @@ function packLabel(id){return(MANIFEST[id]&&MANIFEST[id].label)||id}
    Firebase sync (25 SECURITY / 6 FIRESTORE LOADING)
    ================================================================== */
 function sanitizeForCloud(p){let{password,...rest}=p;return rest}
+function publicProfile(p,uid){return {uid,name:String(p.name||"Player").slice(0,80),level:Number(p.level)||1,matches:Number(p.matches)||0,wins:Number(p.wins)||0,runs:Number(p.runs)||0,wickets:Number(p.wickets)||0,updatedAt:Date.now()}}
+function leaderboardProfile(p,uid){return {uid,name:String(p.name||"Player").slice(0,80),wins:Number(p.wins)||0,runs:Number(p.runs)||0,level:Number(p.level)||1,updatedAt:Date.now()}}
+function saleSuggestion(id){const item=SHOP.find(x=>x.id===id),owned=player.inventory[id];if(!item||!owned)return 0;
+ const condition=Math.max(0,Math.min(1,Number(owned.dur)/item.dur));
+ return Math.max(1,Math.round(item.base*(.5+.5*condition)*Math.min(1.5,1+.06*Math.max(0,(Number(player.level)||1)-1))));
+}
+function savedPlayerOptions(){return (player.savedPlayers||[]).map(p=>'<option value="'+e(p.uid)+'">'+e(p.name)+' - '+e(p.uid)+'</option>').join("")}
+function savedPlayersPanel(){return '<h2>Saved Players</h2>'+(player.savedPlayers?.length?'<ul>'+player.savedPlayers.map(p=>'<li class="card">'+e(p.name)+' - User ID '+e(p.uid)+' <button type="button" data-copy-uid="'+e(p.uid)+'" aria-label="Copy User ID for '+e(p.name)+'">Copy User ID</button> <button type="button" data-remove-player="'+e(p.uid)+'" aria-label="Remove '+e(p.name)+' from saved players">Remove</button></li>').join('')+'</ul>':'<p>No saved players yet. Look up a Player ID in the Shop to save one.</p>')}
+
 function rememberEconomy(uid,data){lastEconomySync={uid,balance:Number(data.balance)||0,inventory:JSON.parse(JSON.stringify(data.inventory||{}))}}
 async function pushCloud(){
  saveLocal();
@@ -442,7 +500,7 @@ async function pushCloud(){
   const baseline=lastEconomySync.uid===uid?JSON.parse(JSON.stringify(lastEconomySync)):null;
   await runTransaction(db,async tx=>{
    const snap=await tx.get(ref),live=snap.exists()?snap.data():null;
-   if(!live){tx.set(ref,{...snapshot,updatedAt:Date.now()});return}
+   if(!live){tx.set(ref,{...snapshot,updatedAt:Date.now()});if(snapshot.sharePublicProfile)tx.set(doc(db,"publicProfiles",uid),publicProfile(snapshot,uid));if(snapshot.shareLeaderboard)tx.set(doc(db,"leaderboard",uid),leaderboardProfile(snapshot,uid));return}
    if(!baseline)throw Error("Refresh your profile before saving economy changes.");
    const balanceDelta=(Number(snapshot.balance)||0)-baseline.balance;
    if(balanceDelta<0&&(Number(live.balance)||0)<-balanceDelta)throw Error("Not enough ₹ after a recent transaction. Refresh your profile.");
@@ -456,6 +514,8 @@ async function pushCloud(){
    }
    delete snapshot.lastTradeId;
    tx.update(ref,{...snapshot,balance:(Number(live.balance)||0)+balanceDelta,inventory,updatedAt:Date.now()});
+   if(snapshot.sharePublicProfile)tx.set(doc(db,"publicProfiles",uid),publicProfile(snapshot,uid));
+   if(snapshot.shareLeaderboard)tx.set(doc(db,"leaderboard",uid),leaderboardProfile(snapshot,uid));
   });
   const fresh=await getDoc(ref);
   if(fresh.exists()&&auth.currentUser?.uid===uid){
@@ -478,14 +538,18 @@ async function loadForUser(u){
    let checkpoint=local.uid===u.uid&&local.matchCheckpoint&&(!cloud.matchCheckpoint||local.matchCheckpoint.savedAt>cloud.matchCheckpoint.savedAt)?local.matchCheckpoint:cloud.matchCheckpoint||null;
    let useCloud=!local.updatedAt||!cloud.updatedAt||cloud.updatedAt>=local.updatedAt;
    let src=useCloud?cloud:local;
-   player={...base,...src,matchCheckpoint:checkpoint,uid:u.uid,email:u.email||src.email||"",photoURL:u.photoURL||src.photoURL||"",name:src.name||u.displayName||"Player",settings:{...DEFAULT_SETTINGS,...(src.settings||{})},inventory:cloud.inventory||{},balance:cloud.balance??src.balance,formatWins:src.formatWins||{},history:src.history||[],achievements:src.achievements||[]};
+   player={...base,...src,sharePublicProfile:src.sharePublicProfile!==false,matchCheckpoint:checkpoint,uid:u.uid,email:u.email||src.email||"",photoURL:u.photoURL||src.photoURL||"",name:src.name||u.displayName||"Player",settings:{...DEFAULT_SETTINGS,...(src.settings||{})},inventory:cloud.inventory||{},balance:cloud.balance??src.balance,formatWins:src.formatWins||{},history:src.history||[],achievements:src.achievements||[],savedPlayers:Array.isArray(src.savedPlayers)?src.savedPlayers:[],friendScores:src.friendScores||{}};
    rememberEconomy(u.uid,cloud);saveLocal();
+   if(player.sharePublicProfile)try{await setDoc(doc(db,"publicProfiles",u.uid),publicProfile(player,u.uid))}catch(x){console.warn("public profile publish",x)}
+   if(player.shareLeaderboard)try{await setDoc(doc(db,"leaderboard",u.uid),leaderboardProfile(player,u.uid))}catch(x){console.warn("leaderboard publish",x)}
    squadDraft=Array.isArray(player.squad)?player.squad:[];
    page="home";
   }else{
    let local=loadLocal();
-   player={...base,matchCheckpoint:local.uid===u.uid?local.matchCheckpoint:null,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player",createdAt:Date.now()};
+   player={...base,sharePublicProfile:true,matchCheckpoint:local.uid===u.uid?local.matchCheckpoint:null,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player",createdAt:Date.now()};
    rememberEconomy(u.uid,player);saveLocal();
+   if(player.sharePublicProfile)try{await setDoc(doc(db,"publicProfiles",u.uid),publicProfile(player,u.uid))}catch(x){console.warn("public profile publish",x)}
+   if(player.shareLeaderboard)try{await setDoc(doc(db,"leaderboard",u.uid),leaderboardProfile(player,u.uid))}catch(x){console.warn("leaderboard publish",x)}
    squadDraft=Array.isArray(player.squad)?player.squad:[];
    page="onboarding";
   }
@@ -494,9 +558,10 @@ async function loadForUser(u){
   console.error("profile load failed",x);
   booting=false;page="loadError";announce(err,true);render();return;
  }
- match=null;
+ match=null;pendingFriendId=null;
  adminRecords=[];adminLastDoc=null;adminAllLoaded=false;adminSelectedUid=null;adminError="";
  booting=false;
+ claimDailyLogin(u.uid);
  if(lastLoadedAuthUid!==u.uid){lastLoadedAuthUid=u.uid;announce("Google sign-in successful. Welcome back, "+(player.name||"Player")+".",false);setTimeout(()=>{let live=document.getElementById("live-gentle");if(live?.textContent.startsWith("Google sign-in successful."))live.textContent=""},3500)}
  render();
 }
@@ -536,24 +601,75 @@ setPersistence(auth,browserLocalPersistence)
   });
  });
 
+// The day is in India time so all players share the same daily challenge.
+function gameDay(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
+function dayBefore(day){const [y,m,d]=day.split("-").map(Number);return new Date(Date.UTC(y,m-1,d-1)).toISOString().slice(0,10)}
+function dailyTarget(day){const n=Number(day.replace(/-/g,""));return 12+(n%4)*2} // 12, 14, 16, 18 runs in 3 overs.
+async function claimDailyLogin(uid){if(dailyClaimBusy||player.loginReward?.day===gameDay())return;dailyClaimBusy=true;const today=gameDay();try{
+ const ref=doc(db,"players",uid);
+ const result=await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return null;const d=snap.data(),prior=d.loginReward||{};if(prior.day===today)return {already:true,prior};
+ const streak=prior.day===dayBefore(today)?Math.min(7,(Number(prior.streak)||0)+1):1,bonus=50+10*(streak-1);
+ tx.update(ref,{loginReward:{day:today,streak},balance:(Number(d.balance)||0)+bonus});return {streak,bonus}});
+ if(auth.currentUser?.uid!==uid||!result)return;
+ if(result.already){player.loginReward=result.prior;return}
+ player.loginReward={day:today,streak:result.streak};player.balance+=result.bonus;lastEconomySync.balance+=result.bonus;saveLocal();announce("Daily login: "+money(result.bonus)+" game money. Streak "+result.streak+" days.",true);render();
+ }catch(x){console.warn("daily login reward",x);announce("Daily login reward could not sync. Try again later.",true)}finally{dailyClaimBusy=false}
+}
+async function loadLeaderboard(force=false){const today=gameDay();if(!force&&leaderboardLoadedDay===today){render();return}
+ try{const snap=await getDocs(query(collection(db,"leaderboard"),orderBy("wins","desc"),limit(10)));leaderboardRows=snap.docs.map(d=>d.data());leaderboardLoadedDay=today;leaderboardError=""}
+ catch(x){leaderboardError="Leaderboard unavailable ("+(x.code||"network-error")+")."}render();
+}
+async function refreshFriendChallenges(){if(challengeLoading||!auth.currentUser)return;challengeLoading=true;challengeError="";try{
+ const uid=auth.currentUser.uid;const [sent,received]=await Promise.all([
+  getDocs(query(collection(db,"friendChallenges"),where("fromUid","==",uid),limit(20))),
+  getDocs(query(collection(db,"friendChallenges"),where("toUid","==",uid),limit(20)))]);
+ challengeRows=[...new Map([...sent.docs,...received.docs].map(d=>[d.id,{id:d.id,...d.data()}])).values()].sort((a,b)=>b.createdAt-a.createdAt);
+ }catch(x){challengeError="Could not load friend challenges ("+(x.code||"network-error")+")."}
+ finally{challengeLoading=false;if(page==="friends")render()}}
+async function sendFriendChallenge(){const uid=auth.currentUser?.uid,toUid=document.getElementById("friendUid")?.value.trim();if(!uid||!toUid||uid===toUid){challengeError="Choose another player's saved ID.";render();return}
+ if(!(player.savedPlayers||[]).some(p=>p.uid===toUid)){challengeError="Save this player in Shop before challenging them.";render();return}
+ try{const peer=await getDoc(doc(db,"publicProfiles",toUid));if(!peer.exists())throw Error("Player lookup is off for this ID. Ask them to enable it in Profile.");
+  const name=peer.data().name||"Player";if(!confirm("Challenge "+name+" ("+toUid+") to score at least 30 runs in 3 overs? Both play one attempt. No wallet transfer or entry fee."))return;
+  const ref=doc(collection(db,"friendChallenges"));await setDoc(ref,{fromUid:uid,toUid,fromName:player.name||"Player",toName:String(name).slice(0,80),target:30,overs:3,fromScore:null,toScore:null,createdAt:Date.now()});
+  challengeError="Challenge sent to "+name+". They can find it in Friend challenges.";await refreshFriendChallenges();announce(challengeError,true);
+ }catch(x){challengeError=x.message||x.code||"Challenge could not be sent.";announce(challengeError,true);render()}
+}
+async function beginFriendChallenge(id){const challenge=challengeRows.find(x=>x.id===id),uid=auth.currentUser?.uid;if(!challenge||!uid||![challenge.fromUid,challenge.toUid].includes(uid))return;
+ try{const fresh=await getDoc(doc(db,"friendChallenges",id));if(!fresh.exists())throw Error("Challenge no longer exists.");const live=fresh.data();if(live.fromUid!==challenge.fromUid||live.toUid!==challenge.toUid||live[uid===live.fromUid?"fromScore":"toScore"]!=null)throw Error("Attempt already recorded or challenge changed.")}catch(x){challengeError=x.message||"Could not verify challenge.";render();return}
+ if(resumableMatch()){challengeError="Finish or quit your saved match before starting the challenge.";render();return}
+ pendingFriendId=id;matchSetupState={...matchSetupState,mode:"friend",format:"3-over challenge",innings:2,overs:3,wicketsLimit:10,toss:"H"};
+ startMatch();
+}
+async function recordFriendScore(id,score){const uid=auth.currentUser?.uid;if(!uid)return false;try{
+ const ref=doc(db,"friendChallenges",id);await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())throw Error("Challenge no longer exists.");const c=snap.data(),field=uid===c.fromUid?"fromScore":uid===c.toUid?"toScore":null;if(!field)throw Error("This challenge is not yours.");if(c[field]!=null)return;tx.update(ref,{[field]:Math.max(0,Math.floor(score))})});
+ announce("Friend challenge score submitted: "+score+" runs.",true);pendingFriendId=null;return true;
+ }catch(x){announce("Friend score could not sync. Keep this match open and use Retry score submission.",true);console.error("friend score",x);return false}
+}
+function leaderboardScreen(){return topBar()+nav()+'<div class="screen"><h1>Top 10 leaderboard</h1><p>Only players who opted in appear. Ranked by match wins. Loads at most once a day per open app, or when you press Refresh.</p><label><input id="shareLeaderboard" type="checkbox" '+(player.shareLeaderboard?'checked':'')+'> Share my name, wins, runs and level on the leaderboard</label><button id="saveLeaderboard">Save leaderboard choice</button><button id="refreshLeaderboard" class="secondary">Refresh top 10</button>'+(leaderboardError?'<p role="alert">'+e(leaderboardError)+'</p>':'')+'<ol>'+leaderboardRows.map(p=>'<li>'+e(p.name)+' - '+(p.wins||0)+' wins; '+(p.runs||0)+' runs; Level '+(p.level||1)+'</li>').join('')+'</ol></div>'}
+function friendsScreen(){return topBar()+nav()+'<div class="screen"><h1>Friend challenges</h1><p>Both players face a 30-run target in a 3-over match versus computer. One attempt each, no entry fee or wallet transfer. Higher batting score wins; equal scores are tied. Refresh to see new challenges.</p><label>Saved player<select id="friendUid"><option value="">Choose a saved player</option>'+savedPlayerOptions()+'</select></label><button id="sendFriendChallenge">Send challenge</button><button id="refreshFriends" class="secondary">Refresh challenges</button>'+(challengeError?'<p role="alert">'+e(challengeError)+'</p>':'')+'<ul>'+challengeRows.map(c=>{let uid=auth.currentUser?.uid,own=uid===c.fromUid?c.fromScore:c.toScore,other=uid===c.fromUid?c.toScore:c.fromScore,peer=uid===c.fromUid?c.toName:c.fromName,done=own!=null&&other!=null;return '<li class="card">Against '+e(peer)+'; target '+c.target+' in '+c.overs+' overs. Your score '+(own==null?'pending':own)+'. Their score '+(other==null?'pending':other)+'. '+(done?(own===other?'Tie.':own>other?'You won.':'They won.'):'')+(own==null?'<button data-friend-play="'+e(c.id)+'">Play my attempt</button>':'')+'</li>'}).join('')+'</ul></div>'}
+function downloadMatchSummary(){if(!match?.done)return;const r=match.rewardBreakdown||{};const lines=["Blind Cricket match summary",new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}),"Result: "+match.result,"Format: "+matchSetupState.format,"Runs: "+(r.pRuns||0),"Wickets: "+(r.pWkts||0),"Sixes: "+(match.playerBatSixes||0),"Reward: "+money(r.reward||0),"Format salary: "+money(r.matchSalary||0),"Daily challenge bonus: "+money(r.dailyBonus||0),"Achievements: "+(r.newAchievements||[]).map(a=>a.name+" (+₹100)").join(", "),"","If you want to play this game:","https://choudharyshyam5-ctrl.github.io/Blind_cricket/"];
+ const blob=new Blob([lines.join("\n")+"\n"],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="blind-cricket-match-summary.txt";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);announce("Match summary download started.",true);
+}
 /* ==================================================================
    MATCH ENGINE: SHOT_TABLE / DELIVERY_TABLE / weightedPick
    ================================================================== */
+// The button chooses an intended shot, not a guaranteed result. Risk rises
+// for big hits but wickets remain occasional rather than almost every ball.
 const SHOT_TABLE={
- zero:[{out:0,r:0,w:.72},{out:0,r:1,w:.18},{out:1,r:0,w:.10}],
- defend:[{out:0,r:0,w:.55},{out:0,r:1,w:.30},{out:1,r:0,w:.15}],
- single:[{out:0,r:1,w:.55},{out:0,r:2,w:.15},{out:0,r:0,w:.15},{out:1,r:0,w:.15}],
- double:[{out:0,r:2,w:.42},{out:0,r:1,w:.20},{out:0,r:3,w:.10},{out:0,r:0,w:.08},{out:1,r:0,w:.20}],
- three:[{out:0,r:3,w:.42},{out:0,r:1,w:.20},{out:0,r:2,w:.15},{out:0,r:0,w:.08},{out:1,r:0,w:.15}],
- five:[{out:0,r:5,w:.30},{out:0,r:2,w:.22},{out:0,r:1,w:.15},{out:0,r:0,w:.08},{out:1,r:0,w:.25}],
- four:[{out:0,r:4,w:.38,four:true},{out:0,r:1,w:.18},{out:0,r:0,w:.12},{out:1,r:0,w:.32}],
- six:[{out:0,r:6,w:.30,six:true},{out:0,r:1,w:.14},{out:0,r:0,w:.14},{out:1,r:0,w:.42}],
+ zero:[{out:0,r:0,w:.75},{out:0,r:1,w:.225},{out:1,r:0,w:.025}],
+ defend:[{out:0,r:0,w:.65},{out:0,r:1,w:.31},{out:1,r:0,w:.04}],
+ single:[{out:0,r:1,w:.58},{out:0,r:2,w:.18},{out:0,r:0,w:.19},{out:1,r:0,w:.05}],
+ double:[{out:0,r:2,w:.47},{out:0,r:1,w:.22},{out:0,r:3,w:.12},{out:0,r:0,w:.12},{out:1,r:0,w:.07}],
+ three:[{out:0,r:3,w:.43},{out:0,r:1,w:.23},{out:0,r:2,w:.16},{out:0,r:0,w:.11},{out:1,r:0,w:.07}],
+ five:[{out:0,r:5,w:.34},{out:0,r:2,w:.27},{out:0,r:1,w:.18},{out:0,r:0,w:.11},{out:1,r:0,w:.10}],
+ four:[{out:0,r:4,w:.40,four:true},{out:0,r:1,w:.25},{out:0,r:0,w:.26},{out:1,r:0,w:.09}],
+ six:[{out:0,r:6,w:.34,six:true},{out:0,r:1,w:.30},{out:0,r:0,w:.26},{out:1,r:0,w:.10}],
 };
 const DELIVERY_TABLE={
- straight:[{wkt:0,r:0,w:.30},{wkt:0,r:1,w:.30},{wkt:0,r:4,w:.14},{wkt:1,r:0,w:.26}],
- yorker:[{wkt:1,r:0,w:.34},{wkt:0,r:0,w:.30},{wkt:0,r:1,w:.20},{wkt:0,r:4,w:.10},{wkt:0,r:0,nb:true,w:.06}],
- bouncer:[{wkt:1,r:0,w:.22},{wkt:0,r:0,w:.20},{wkt:0,r:1,w:.18},{wkt:0,r:6,w:.16},{wkt:0,r:4,w:.14},{wkt:0,r:0,nb:true,w:.10}],
- spin:[{wkt:1,r:0,w:.28},{wkt:0,r:0,w:.28},{wkt:0,r:1,w:.24},{wkt:0,r:4,w:.12},{wkt:0,r:6,w:.08}],
+ straight:[{wkt:0,r:0,w:.38},{wkt:0,r:1,w:.36},{wkt:0,r:4,w:.18},{wkt:1,r:0,w:.08}],
+ yorker:[{wkt:1,r:0,w:.12},{wkt:0,r:0,w:.38},{wkt:0,r:1,w:.26},{wkt:0,r:4,w:.18},{wkt:0,r:0,nb:true,w:.06}],
+ bouncer:[{wkt:1,r:0,w:.09},{wkt:0,r:0,w:.30},{wkt:0,r:1,w:.24},{wkt:0,r:6,w:.15},{wkt:0,r:4,w:.12},{wkt:0,r:0,nb:true,w:.10}],
+ spin:[{wkt:1,r:0,w:.10},{wkt:0,r:0,w:.36},{wkt:0,r:1,w:.30},{wkt:0,r:4,w:.16},{wkt:0,r:6,w:.08}],
 };
 function weightedPick(table){
  let tot=table.reduce((a,x)=>a+x.w,0),r=Math.random()*tot,acc=0;
@@ -578,6 +694,7 @@ function startMatch(){
  if(resumableMatch()&&!confirm("Starting a new match will replace your saved match. Continue?"))return;
  let m=matchSetupState;
  if(m.innings==="test"&&m.mode==="tournament"){msg="Test matches are separate from three-round tournaments. Choose a normal match.";announce(msg,true);render();return}
+ if(m.mode==="friend"&&!pendingFriendId){msg="Choose a friend challenge first.";announce(msg,true);render();return}
  if(m.mode==="tournament"&&!activeTournament()){msg="Start a tournament first.";page="tournaments";render();return}
  if(m.mode==="team"&&(squadDraft.length!==11||squadDraft.filter(p=>p.cat==="B1").length<4)){msg="Team match needs exactly 11 players including at least 4 B1 players.";page="mySquad";announce(msg,true);render();return}
  let opponentTeam=m.mode==="tournament"?tournamentOpponent():null;
@@ -596,7 +713,7 @@ function startMatch(){
   done:false,win:null,log:[],onStrikeNote:"",
   playerBatRuns:0,playerBatFours:0,playerBatSixes:0,playerBallsFaced:0,
   playerBowlWickets:0,playerRunsConceded:0,playerBallsBowled:0,
-  bowlWicketStreak:0,allOut:false,
+  bowlWicketStreak:0,allOut:false,dailyDay:gameDay(),dailyEligible:!isTest()&&m.mode==="daily"&&m.overs===3,friendChallengeId:m.mode==="friend"?pendingFriendId:null,
  };
  activeCommentaryPack=pickPackForSetting(player.settings.commentator);
  syncBgm();playClip("toss");
@@ -638,6 +755,7 @@ function doPlayerShot(shotKey){
   rotateStrikeIfNeeded(res.r);
   match.text=res.six?"SIX!":res.four?"FOUR!":runs>0?(runs+" run"+(runs===1?"":"s")+" completed."):"Dot ball. No run.";
   playClip(res.six?"6":res.four?"4":String(res.r));
+  announce(match.text,true);
   speak(match.text+(match.onStrikeNote?" "+match.onStrikeNote:""));
   pushLog(match.text);
  }
@@ -662,6 +780,7 @@ function doPlayerBowl(deliveryKey){
   if(res.r===4)inn.fours++;if(res.r===6)inn.sixes++;
   match.text=res.r===6?"SIX conceded.":res.r===4?"FOUR conceded.":res.r>0?(res.r+" run"+(res.r===1?"":"s")+" conceded."):"Dot ball. Excellent bowling.";
   playClip(res.r===6?"6":res.r===4?"4":String(res.r));
+  announce(match.text,true);
   match.bowlWicketStreak=0;
  }
  speak(match.text);
@@ -678,7 +797,7 @@ function afterBall(){
   saveMatchCheckpoint();render();return;
  }
  let chasing=match.innings>1&&match.target!=null;
- let over=inn.balls>=ballsLimit()||inn.wickets>=wicketsLimit()||(chasing&&inn.runs>=match.target);
+ let over=inn.balls>=(match.superOver&&match.innings>=3?6:ballsLimit())||inn.wickets>=wicketsLimit()||(chasing&&inn.runs>=match.target);
  if(over){endInnings()}else{saveMatchCheckpoint();render()}
 }
 function endInnings(reason){
@@ -687,17 +806,23 @@ function endInnings(reason){
  let inn=match.sides[side];
  let allOut=inn.wickets>=wicketsLimit();
  if(side==="player"&&allOut&&inn.runs===0)player.duckWickets++;
- if(side==="player")match.playerTotal+=inn.runs; else match.aiTotal+=inn.runs;
- if(match.innings===1&&match.maxInnings===2){
+ if(side==="player"){match.playerTotal+=inn.runs;if(!match.superOver){if(match.friendChallengeId)match.friendBatRuns=inn.runs;if(match.dailyEligible)match.dailyBatRuns=inn.runs}}else match.aiTotal+=inn.runs;
+ if((match.innings===1&&match.maxInnings===2)||(match.superOver&&match.innings===3)){
   match.target=inn.runs+1;
   match.current=oppositeSide(side);
-  match.innings=2;
+  match.innings=match.superOver?4:2;
   match.sides[match.current]=newInningsState();
   announce("Innings break. Target to win: "+match.target+" runs.",true);
   match.text="Innings break. "+(match.current==="player"?"You need "+match.target+" runs to win.":"Opponent needs "+match.target+" runs to win.");
   speak(match.text);
   saveMatchCheckpoint();render();
   return;
+ }
+ if(match.playerTotal===match.aiTotal&&!match.superOver){
+  match.regularScores={player:match.playerTotal,ai:match.aiTotal};match.playerTotal=0;match.aiTotal=0;
+  match.superOver=true;match.superFirst="player";match.innings=3;match.maxInnings=4;match.current="player";match.sides.player=newInningsState();match.sides.ai=newInningsState();match.target=null;
+  match.text="Scores tied. Super Over: one over each, batting first. Highest runs wins. A second tie remains a draw.";
+  announce(match.text,true);saveMatchCheckpoint();render();return;
  }
  finishMatch();
 }
@@ -787,7 +912,7 @@ function finishMatch(reason){
   draw=reason==="time"||(reason!=="innings"&&match.playerTotal===match.aiTotal);
   win=!draw&&match.playerTotal>match.aiTotal;
   match.result=draw?"DRAW":win?"WIN":"LOSS";
- }else{win=match.playerTotal>match.aiTotal;match.result=win?"WIN":"LOSS"}
+ }else{draw=match.playerTotal===match.aiTotal;win=!draw&&match.playerTotal>match.aiTotal;match.result=draw?"DRAW":win?"WIN":"LOSS"}
  match.win=win;
  let lvl=levelData(player.level);
  let coinBonus=win?winCoinBonus():0;
@@ -824,11 +949,13 @@ function finishMatch(reason){
  let potm=win&&(pRuns>=50||pWkts>=3);
  if(potm)player.playerOfMatch++;
  const matchSalary=perMatchSalary();player.balance+=reward+matchSalary;
+ const dailyBonus=match.dailyEligible&&match.dailyDay===gameDay()&&player.dailyChallengeDay!==match.dailyDay&&(match.dailyBatRuns??pRuns)>=dailyTarget(match.dailyDay)?150:0;
+ if(dailyBonus){player.dailyChallengeDay=match.dailyDay;player.dailyChallengesWon=(player.dailyChallengesWon||0)+1;player.balance+=dailyBonus}
  player.xp+=xpGain;
 
  let newAchievements=[];
  for(const a of ACHIEVEMENTS){
-  if(!player.achievements.includes(a.id)&&a.check(player)){player.achievements.push(a.id);newAchievements.push(a)}
+  if(!player.achievements.includes(a.id)&&a.check(player,match)){player.achievements.push(a.id);newAchievements.push(a);player.balance+=100}
  }
  let leveledUp=null;
  let nl=nextLevelData(player.level);
@@ -845,19 +972,21 @@ function finishMatch(reason){
   if(cur.salary){salaryPaid=cur.salary;player.balance+=salaryPaid}
  }
  const bonusItem=win?awardWinItem():null;
- if(!isTest())advanceOfflineTournament(win);
+ if(!isTest()&&matchSetupState.mode==="tournament")advanceOfflineTournament(win);
  player.history.push({date:Date.now(),result:match.result,runs:pRuns,wickets:pWkts,reward,mode:matchSetupState.mode,format:matchSetupState.format});
  if(player.history.length>200)player.history=player.history.slice(-200);
  saveMatchCheckpoint(true);
  matchSaveQueue.then(()=>pushCloud()).catch(x=>console.error("post-match save",x));
 
- match.rewardBreakdown={reward,coinBonus,matchSalary,bonusItem,xpGain,newBalance:player.balance,newAchievements,leveledUp,salaryPaid,pRuns,pWkts,potm};
+ match.rewardBreakdown={reward,coinBonus,matchSalary,dailyBonus,bonusItem,xpGain,newBalance:player.balance,newAchievements,leveledUp,salaryPaid,pRuns,pWkts,potm};
+ if(match.friendChallengeId){match.friendSubmissionScore=match.friendBatRuns??pRuns;recordFriendScore(match.friendChallengeId,match.friendSubmissionScore)}
  if(!draw)playResultSound(win);
  if(leveledUp){setTimeout(()=>{levelUpBeep();announce("Level up! You are now "+leveledUp.title+". Bonus "+money(leveledUp.unlockBonus)+" added. New unlocks: "+leveledUp.unlocks.join(", ")+".",true)},600)}
  announce((draw?"Test match drawn. Neither team won.":win?"You won the match!":"Match complete. You lost.")+" Salary "+money(matchSalary)+"."+(coinBonus?" Win bonus "+money(coinBonus)+".":"")+(bonusItem?" Bonus item "+bonusItem.name+" added to Collection.":""),true);
  render();
 }
 function closeResultPopup(){
+ if(match?.friendChallengeId&&pendingFriendId){announce("Friend score has not synced yet. Retry submission before leaving this result.",true);return}
  stopResultSound();fadeBgm(0);match=null;
  page=matchSetupState.mode==="tournament"?"tournaments":"home";
  render();
@@ -992,12 +1121,14 @@ function nav(){return'<div class="nav" style="margin-bottom:10px"><button class=
 
 function homeHandCricket(){
  return topBar()
- +'<div class="logo-wrap"><div class="logo-emoji">🤞 ✌️ 🤟 🏏</div><div class="logo-text">BLIND CRICKET</div><div class="logo-base"></div></div>'
+ +'<div class="logo-wrap"><div class="logo-emoji" aria-hidden="true">BC</div><div class="logo-text">BLIND CRICKET</div><div class="logo-base"></div></div>'
  +'<div class="sheet"><div class="sheet-handle"></div>'
  +'<button class="contact" data-p="help">ANY ISSUES??? CONTACT US</button>'
  +'<button class="bigbtn" data-p="matchSetup" data-mode="cpu"><b>PLAY VERSUS COMPUTER</b><span>Play versus offline robot</span></button>'
  +'<button class="bigbtn" data-p="teamVsTeam"><b>TEAM VERSUS COMPUTER</b><span>Set up your 11-player squad, then play a computer team</span></button>'
  +'<div class="badge">B1 rule: Minimum 4 B1 players required for 11 players.</div>'
+ +'<div class="card"><h2>Daily Challenge</h2><p>Score '+dailyTarget(gameDay())+' runs in one 3-over match for '+money(150)+' bonus. '+(player.dailyChallengeDay===gameDay()?'Completed today.':'One reward per day.')+'</p><button id="startDaily" '+(player.dailyChallengeDay===gameDay()?'disabled':'')+'>Start 3-over challenge</button></div>'
+ +'<div class="row"><button data-p="leaderboard">Top 10 leaderboard</button><button data-p="friends">Friend challenges</button></div>'
  +'<div class="row" style="margin-top:14px">'+(resumableMatch()?'<button class="secondary" id="resumeHome">Resume Saved Match</button>':'<span class="muted">No saved match to resume.</span>')+'<button class="secondary" data-p="resumeTournament">'+(activeTournament()?'Continue Offline Tournament':'Offline Tournaments')+'</button></div>'
  +'</div>';
 }
@@ -1007,6 +1138,7 @@ function careerScreen(){
  let cur=levelData(player.level),nxt=nextLevelData(player.level);
  let prog=nxt?reqLine(nxt.req,player):[];
  return topBar()+nav()+'<div class="screen"><h1>🏆 Career</h1>'
+ +'<p>Career path: School, Club, District, State, Zonal, National, India A, Team India, Captain India, Legend. Level advances when the listed match and performance requirements are met.</p>'
  +'<div class="card"><h2>Level '+cur.level+' — '+e(cur.title)+'</h2><p class="muted">Tier: '+e(cur.tier)+'</p>'
  +'<div class="bar"><i style="width:'+Math.min(100,Math.round(player.xp/need()*100))+'%"></i></div><p>'+player.xp+'/'+need()+' XP</p>'
  +'<p>Win reward: '+money(cur.win)+' · Loss reward: '+money(cur.loss)+(cur.salary?' · Salary: '+money(cur.salary)+' every 10 matches':'')+'</p></div>'
@@ -1042,6 +1174,8 @@ function profileScreen(){
  +'<div class="card"><span class="muted">Career Level</span><div class="stat" style="font-size:20px">'+cur.level+' — '+e(cur.title)+'</div></div>'
  +'<div class="card"><span class="muted">Team</span><div class="stat" style="font-size:20px">'+(player.teamName?e(player.teamName):"No team yet")+'</div>'+(player.teamId?'<p class="muted">'+e(player.teamId)+'</p>':'')+'</div>'
  +'</div>'
+ +'<h2>Player lookup</h2><p>Other signed-in players who know your User ID can see your name, level and match totals by default. Turn this off to remove your public game profile. They cannot see your email, wallet, location or inventory.</p><label><input id="sharePublicProfile" type="checkbox" '+(player.sharePublicProfile?'checked':'')+'> Allow other players to look up my public game profile by User ID</label><button id="savePublicProfile" type="button">Save lookup choice</button>'
+ +savedPlayersPanel()
  +'<h2 style="margin-top:20px">My Collection</h2>'+collectionGrid()
  +'<h2 style="margin-top:20px">Achievements</h2><div class="grid">'+(player.achievements.length?player.achievements.map(id=>{let a=ACHIEVEMENTS.find(x=>x.id===id);return a?'<div class="card"><b>🏅 '+e(a.name)+'</b><p class="muted">'+e(a.desc)+'</p></div>':''}).join(""):'<p class="muted">No achievements yet.</p>')+'</div>'
  +'<h2 style="margin-top:20px">Match History</h2><div class="log">'+(player.history.length?player.history.slice().reverse().slice(0,20).map(h=>'<div class="card" style="margin:8px 0"><b>'+e(h.result)+'</b> — '+h.runs+' runs, '+h.wickets+' wkts — Reward '+money(h.reward)+'<br><span class="muted">'+new Date(h.date).toLocaleString()+'</span></div>').join(""):"<p class='muted'>No matches yet.</p>")+'</div>'
@@ -1082,14 +1216,42 @@ async function refreshTrades(){
  }catch(x){tradeError="Could not load item requests ("+(x.code||"unknown-error")+"). Check Firestore rules."}
  finally{tradeLoading=false;if(page==="shop")render()}
 }
+function updateOfferPrice(){const item=document.getElementById("offerItem")?.value,kind=document.getElementById("offerKind")?.value,price=document.getElementById("offerPrice"),label=document.getElementById("suggestedPrice");if(!price)return;
+ if(kind==="gift"){price.value="0";price.disabled=true;if(label)label.textContent="A gift is free."}
+ else{price.disabled=false;price.value=String(saleSuggestion(item));if(label)label.textContent="Suggested sale price "+money(saleSuggestion(item))+" based on original item price, remaining durability, and seller career level. You can change it."}
+}
+async function lookupRecipient(){
+ const field=document.getElementById("recipientUid"),uid=field?.value.trim(),status=document.getElementById("recipientStatus");
+ recipientPreview=null;if(status)status.textContent="";
+ if(!uid||uid===auth.currentUser?.uid){if(status)status.textContent="Enter another player's User ID.";return}
+ recipientLookupBusy=true;if(status)status.textContent="Looking up player...";
+ try{const snap=await getDoc(doc(db,"publicProfiles",uid));if(!snap.exists())throw Error("No public profile for that ID. Ask the player to sign in or check their Player lookup setting.");
+  const p=snap.data();if(p.uid!==uid)throw Error("Player profile does not match the ID.");
+  if(field.value.trim()!==uid||auth.currentUser?.uid===uid)return;
+  recipientPreview={uid,name:String(p.name||"Player"),level:Number(p.level)||1,matches:Number(p.matches)||0,wins:Number(p.wins)||0,runs:Number(p.runs)||0,wickets:Number(p.wickets)||0};
+  if(status)status.textContent="Player: "+recipientPreview.name+". Level "+recipientPreview.level+", "+levelData(recipientPreview.level).title+". Matches "+recipientPreview.matches+", wins "+recipientPreview.wins+", runs "+recipientPreview.runs+", wickets "+recipientPreview.wickets+". Confirm the name before sending.";
+  const save=document.getElementById("saveRecipient");if(save)save.disabled=false;
+ }catch(x){if(status)status.textContent=x.message||x.code||"Lookup failed.";const save=document.getElementById("saveRecipient");if(save)save.disabled=true}
+ finally{recipientLookupBusy=false}
+}
+async function saveRecipient(){if(!recipientPreview)return;
+ const p={uid:recipientPreview.uid,name:recipientPreview.name};
+ player.savedPlayers=[...(player.savedPlayers||[]).filter(x=>x.uid!==p.uid),p].slice(-50);
+ if(await pushCloud()){tradeError=p.name+" saved to your players.";announce(tradeError,true)}else tradeError=err;
+ render();
+}
 async function offerItem(ev){
  ev.preventDefault();if(economyBusy){tradeError="Finish the current item action first.";render();return}economyBusy=true;
  const uid=auth.currentUser?.uid, itemId=document.getElementById("offerItem").value;
  const toUid=document.getElementById("recipientUid").value.trim();
+ const verified=recipientPreview?.uid===toUid?recipientPreview:null;
  const kind=document.getElementById("offerKind").value;
  const price=kind==="gift"?0:Number(document.getElementById("offerPrice").value);
- if(!uid||!SHOP.some(i=>i.id===itemId)||!toUid||toUid===uid||!((kind==="sale"&&Number.isSafeInteger(price)&&price>0)||(kind==="gift"&&price===0))){tradeError="Select an owned item, another player's ID, and a valid whole-₹ sale price or gift.";render();return}
- const offerRef=doc(collection(db,"itemRequests")),senderRef=doc(db,"players",uid),recipientRef=doc(db,"players",toUid);
+ if(!uid||!SHOP.some(i=>i.id===itemId)||!verified||toUid===uid||!((kind==="sale"&&Number.isSafeInteger(price)&&price>0)||(kind==="gift"&&price===0))){tradeError="Look up the recipient and check their name before sending. Enter a valid whole-₹ price for a sale.";economyBusy=false;render();return}
+ const latestRecipient=await getDoc(doc(db,"publicProfiles",toUid)).catch(()=>null);
+ if(!latestRecipient?.exists()||latestRecipient.data().name!==verified.name){tradeError="Player profile changed or is no longer shared. Look up the ID again.";recipientPreview=null;economyBusy=false;render();return}
+ if(!confirm((kind==="gift"?"Gift ":"Offer ")+(SHOP.find(i=>i.id===itemId)?.name||itemId)+" to "+verified.name+" ("+verified.uid+")"+(kind==="sale"?" for "+money(price):" for free")+"? The item will be reserved until they accept or decline.")){economyBusy=false;return}
+ const offerRef=doc(collection(db,"itemRequests")),senderRef=doc(db,"players",uid);
  try{
   await runTransaction(db,async tx=>{
    const sender=await tx.get(senderRef);
@@ -1154,10 +1316,12 @@ function shopScreen(){
    return '<div class="card"><h3>'+e(i.name)+'</h3>'
     +(inflated?'<p class="muted" style="text-decoration:line-through">Original Price: '+money(i.base)+'</p><p>New Price: '+money(price)+'</p><p class="muted">Inflation '+band.label+'</p>':'<p>Price: '+money(price)+'</p>')
     +'<p>Durability: '+(owned?owned.dur:0)+'/'+i.dur+'</p>'
-    +'<button data-buy="'+i.id+'" '+(player.balance<price||owned?"disabled":"")+'>'+(owned?"Owned":"Buy")+'</button>'+(owned?'<button class="secondary" data-sell="'+i.id+'">Sell for '+money(Math.floor(price/2))+'</button>':'')+'</div>';
+    +'<button data-buy="'+i.id+'" '+(player.balance<price||owned?"disabled":"")+'>'+(owned?"Owned":"Buy")+'</button>'+(owned?'<button class="secondary" data-sell="'+i.id+'">Sell or gift this item</button>':'')+'</div>';
  }).join("")+'</div>'
  +'<h2 style="margin-top:20px">My Items</h2>'+collectionGrid()
- +'<h2>Send owned item</h2><form id="itemOffer" class="form"><label>Item<select id="offerItem">'+Object.keys(player.inventory).map(id=>'<option value="'+e(id)+'">'+e(SHOP.find(i=>i.id===id)?.name||id)+'</option>').join("")+'</select></label><label>Recipient Player ID<input id="recipientUid" required autocomplete="off"></label><label>Gift or sale<select id="offerKind"><option value="gift">Gift</option><option value="sale">Sale</option></select></label><label>Price in ₹ for sale (gift is free)<input id="offerPrice" type="number" min="0" step="1" value="0"></label><button type="submit" '+(Object.keys(player.inventory).length?'':'disabled')+'>Send request</button></form>'
+ +'<h2>Sell item</h2><p>Choose how to sell. A player sale needs the recipient to accept; a game buyback pays immediately.</p><label>Item<select id="sellChoiceItem">'+Object.keys(player.inventory).map(id=>'<option value="'+e(id)+'" '+(selectedSellItem===id?'selected':'')+'>'+e(SHOP.find(i=>i.id===id)?.name||id)+'</option>').join('')+'</select></label><div class="row"><button type="button" id="sellToPlayer" '+(Object.keys(player.inventory).length?'':'disabled')+'>Sell to a player - enter Player ID</button><button type="button" id="sellToGame" '+(Object.keys(player.inventory).length?'':'disabled')+'>Sell back to game</button></div>'
+ +'<h2>Gift or sell to a player</h2><form id="itemOffer" class="form"><label>Item<select id="offerItem">'+Object.keys(player.inventory).map(id=>'<option value="'+e(id)+'" '+(selectedSellItem===id?'selected':'')+'>'+e(SHOP.find(i=>i.id===id)?.name||id)+'</option>').join("")+'</select></label><label>Recipient Player ID<input id="recipientUid" required autocomplete="off"></label><label>Saved players<select id="savedRecipient"><option value="">Select a saved player</option>'+savedPlayerOptions()+'</select></label><button type="button" id="lookupRecipient">Look up Player ID</button><p id="recipientStatus" role="status" aria-live="polite">Look up the ID to see the player before sending.</p><button type="button" id="saveRecipient" disabled>Save Player</button><label>Gift or sale<select id="offerKind"><option value="gift">Gift</option><option value="sale">Sale</option></select></label><label>Price in ₹ for sale (gift is free)<input id="offerPrice" type="number" min="0" step="1" value="0"></label><p id="suggestedPrice" role="status"></p><button type="submit" '+(Object.keys(player.inventory).length?'':'disabled')+'>Review and send request</button></form>'
+ +savedPlayersPanel()
  +'<h2>Item requests</h2><button id="refreshTrades" class="secondary">Refresh requests</button>'+(tradeLoading?'<p role="status">Loading requests...</p>':'')+(tradeError?'<p role="status">'+e(tradeError)+'</p>':'')
  +'<h3>Received</h3>'+tradeList(incomingTrades,true)+'<h3>Sent</h3>'+tradeList(outgoingTrades,false)
  +'</div>';
@@ -1203,7 +1367,7 @@ function matchScreen(){
  if(match.done)return resultPopup();
  let side=match.current,inn=currentInnings();
  let ballsLeft=ballsLimit()-inn.balls;
- let header=(isTest()?'<p role="status">'+e(testStatus())+'</p>':'')+(matchSetupState.mode==="tournament"?'<p role="status">Tournament round '+player.offlineTournament.round+' of '+player.offlineTournament.requiredWins+'. Opponent: '+e(opponentLabel(match.opponentTeam))+'.</p>':'')+'<div class="grid"><div class="card"><span class="muted">Score</span><div class="stat">'+inn.runs+'/'+inn.wickets+'</div><p>Over '+Math.floor(inn.balls/6)+'.'+(inn.balls%6)+'; '+(isTest()?Math.floor(match.testBallsUsed/6)+'.'+(match.testBallsUsed%6)+' of 450 overs used in match': 'of '+matchSetupState.overs+' overs per innings')+'</p></div>'
+ let header=(match.dailyEligible?'<p role="status">Daily target: '+dailyTarget(match.dailyDay)+' runs in this 3-over match, reward '+money(150)+'.</p>':'')+(match.friendChallengeId?'<p role="status">Friend challenge: score at least 30 runs in 3 overs. One attempt only.</p>':'')+(match.superOver?'<p role="status">Super Over. One over each; second tie is a draw.</p>':'')+(isTest()?'<p role="status">'+e(testStatus())+'</p>':'')+(matchSetupState.mode==="tournament"?'<p role="status">Tournament round '+player.offlineTournament.round+' of '+player.offlineTournament.requiredWins+'. Opponent: '+e(opponentLabel(match.opponentTeam))+'.</p>':'')+'<div class="grid"><div class="card"><span class="muted">Score</span><div class="stat">'+inn.runs+'/'+inn.wickets+'</div><p>Over '+Math.floor(inn.balls/6)+'.'+(inn.balls%6)+'; '+(isTest()?Math.floor(match.testBallsUsed/6)+'.'+(match.testBallsUsed%6)+' of 450 overs used in match': 'of '+matchSetupState.overs+' overs per innings')+'</p></div>'
   +'<div class="card"><span class="muted">'+(match.target!=null&&match.innings>1?"Target":"Innings")+'</span><div class="stat">'+(match.target!=null&&match.innings>1?match.target:(match.innings+"/"+match.maxInnings))+'</div></div></div>';
  let commentary='<div class="commentary" role="status" aria-live="polite"><b>Commentary</b><br>'+e(match.text)+(match.onStrikeNote?"<br>"+e(match.onStrikeNote):"")+'</div>';
  let controls;
@@ -1215,9 +1379,9 @@ function matchScreen(){
    +'<button data-shot="single">1 Run</button>'
    +'<button data-shot="double">2 Runs</button>'
    +'<button data-shot="three">3 Runs</button>'
-   +'<button data-shot="four">4 Runs</button>'
+   +'<button data-shot="four" aria-label="Aim for 4 runs, actual result is random">Aim for 4 Runs</button>'
    +'<button data-shot="five">5 Runs</button>'
-   +'<button data-shot="six">6 Runs</button>'
+   +'<button data-shot="six" aria-label="Aim for 6 runs, actual result is random">Aim for 6 Runs</button>'
    +'</div>';
  }else{
   controls='<h2>Choose Your Delivery</h2><div class="shots">'
@@ -1234,11 +1398,12 @@ function quitMatch(){
  if(!match||match.done)return;
  fadeBgm(0);
  player.quits++;
+ if(match.friendChallengeId){match.friendSubmissionScore=0;recordFriendScore(match.friendChallengeId,0)}
  match.done=true;match.win=false;
  let pRuns=match.playerBatRuns,pWkts=match.playerBowlWickets;
- player.matches++;player.losses++;
+ match.result="QUIT";player.matches++;player.losses++;
  player.runs+=pRuns;player.wickets+=pWkts;
- advanceOfflineTournament(false);
+ if(matchSetupState.mode==="tournament")advanceOfflineTournament(false);
  player.history.push({date:Date.now(),result:"QUIT",runs:pRuns,wickets:pWkts,reward:0,mode:matchSetupState.mode});
  saveMatchCheckpoint(true);
  matchSaveQueue.then(()=>pushCloud()).catch(x=>console.error("post-match save",x));
@@ -1250,17 +1415,19 @@ function resultPopup(){
  menuOpen=false;
  let r=match.rewardBreakdown||{};
  return '<div class="modal-back" role="dialog" aria-modal="true" aria-label="Match result"><div class="modal">'
- +(match.result==="DRAW"?'<h2>Test Match Drawn</h2><p>Time ran out or the scores were tied. Neither team won.</p>':match.win?'<h2>🎉 CONGRATULATIONS! 🎉</h2><p>You won the match!</p>':player.history.at(-1)?.result==="QUIT"?'<h2>Match Quit</h2><p>You quit this match. No reward.</p>':'<h2>Match Complete</h2><p>You lost the match.</p>')
+ +(match.result==="DRAW"?'<h2>Match Drawn</h2><p>Scores tied after the Super Over or Test time ran out. Neither team won.</p>':match.win?'<h2>🎉 CONGRATULATIONS! 🎉</h2><p>You won the match!</p>':player.history.at(-1)?.result==="QUIT"?'<h2>Match Quit</h2><p>You quit this match. No reward.</p>':'<h2>Match Complete</h2><p>You lost the match.</p>')
  +'<p>Runs: <b>'+r.pRuns+'</b> · Wickets: <b>'+r.pWkts+'</b></p>'
  +'<p>Match Reward: <b>'+money(r.reward)+'</b> (includes win bonus '+money(r.coinBonus||0)+')</p><p>Format salary: <b>'+money(r.matchSalary||0)+'</b></p>'
  +'<p>XP Earned: <b>'+r.xpGain+' XP</b></p>'
  +(r.salaryPaid?'<p>Salary Paid: <b>'+money(r.salaryPaid)+'</b></p>':'')
- +(r.newAchievements&&r.newAchievements.length?r.newAchievements.map(a=>'<p>Achievement Unlocked: <b>'+e(a.name)+'</b></p>').join(""):"")
+ +(r.dailyBonus?'<p>Daily Challenge: <b>'+money(r.dailyBonus)+'</b></p>':'')
+ +(r.newAchievements&&r.newAchievements.length?r.newAchievements.map(a=>'<p>Achievement Unlocked: <b>'+e(a.name)+'</b> - '+money(100)+' bonus</p>').join(""):"")
  +(r.leveledUp?'<p>Level Up! You are now <b>'+e(r.leveledUp.title)+'</b>. Bonus '+money(r.leveledUp.unlockBonus)+' added.</p>':'')
  +(r.potm?'<p>🌟 Player of the Match!</p>':'')+(r.bonusItem?'<p>Bonus item added to Collection: '+e(r.bonusItem.name)+'</p>':'')
  +(matchSetupState.mode==="tournament"&&player.offlineTournament?.status==="won"?'<p>Offline tournament won. Prize included in balance.</p>':'')
  +'<p>New Balance: <b>'+money(r.newBalance)+'</b></p>'
- +'<button id="continueBtn" style="margin-top:10px;width:100%">Continue</button>'
+ +(match.friendChallengeId&&pendingFriendId?'<button type="button" id="retryFriendScore">Retry friend score submission</button>':'')
+ +'<button type="button" id="downloadSummary">Download summary (.txt)</button><button id="continueBtn" style="margin-top:10px;width:100%">Continue</button>'
  +'</div></div>';
 }
 
@@ -1373,6 +1540,8 @@ function render(){
  else if(page==="editProfile")body=editProfileScreen();
  else if(page==="shop")body=shopScreen();
  else if(page==="settings")body=settingsScreen();
+ else if(page==="leaderboard")body=leaderboardScreen();
+ else if(page==="friends")body=friendsScreen();
  else if(page==="matchSetup")body=matchSetupScreen();
  else if(page==="match")body=match?matchScreen():homeHandCricket();
  else if(page==="teamCreate")body=teamCreateScreen();
@@ -1435,7 +1604,7 @@ function bind(){
  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
   let mode=b.dataset.mode;
   if(mode)matchSetupState.mode=mode;
-  page=b.dataset.p;msg="";menuOpen=false;render();if(page==="shop")refreshTrades();
+  page=b.dataset.p;msg="";menuOpen=false;render();if(page==="shop")refreshTrades();if(page==="leaderboard")loadLeaderboard();if(page==="friends")refreshFriendChallenges();
  });
  let menuBtn=document.getElementById("menuBtn");if(menuBtn)menuBtn.onclick=()=>{if(match?.done){menuOpen=false;return}menuOpen=!menuOpen;render()};
  let menuBack=document.getElementById("menuBack");if(menuBack)menuBack.onclick=(ev)=>{if(ev.target===menuBack){menuOpen=false;render()}};
@@ -1444,11 +1613,28 @@ function bind(){
   if(id==="logout"){doLogout();return}
   if(id==="matchSetup"){matchSetupState.mode="cpu"}
   if(id==="admin"&&!isAdmin()){page="home";render();return}
-  page=id;render();if(id==="admin"&&!adminRecords.length&&!adminLoading)loadAdminBatch();if(id==="shop")refreshTrades();
+  page=id;render();if(id==="leaderboard")loadLeaderboard();if(id==="friends")refreshFriendChallenges();if(id==="admin"&&!adminRecords.length&&!adminLoading)loadAdminBatch();if(id==="shop")refreshTrades();
  });
  let rh=document.getElementById("resumeHome"),rm=document.getElementById("resumeFromMenu"),rt=document.getElementById("resumeTourMatch"),nt=document.getElementById("nextTourRound");
  if(rh)rh.onclick=resumeMatch;if(rm)rm.onclick=resumeMatch;if(rt)rt.onclick=resumeMatch;
  if(nt)nt.onclick=()=>{matchSetupState={...matchSetupState,mode:"tournament",toss:null};page="matchSetup";render()};
+ let startDaily=document.getElementById("startDaily");if(startDaily)startDaily.onclick=()=>{if(resumableMatch()){announce("Finish or quit your saved match first.",true);return}matchSetupState={...matchSetupState,mode:"daily",format:"3-over daily challenge",innings:2,overs:3,wicketsLimit:10,toss:null};page="matchSetup";render()};
+ let lb=document.getElementById("refreshLeaderboard");if(lb)lb.onclick=()=>loadLeaderboard(true);
+ let slb=document.getElementById("saveLeaderboard");if(slb)slb.onclick=async()=>{const enabled=document.getElementById("shareLeaderboard").checked;if(enabled&&!confirm("Show your game name, wins, runs and level to signed-in players on the top-10 leaderboard?"))return;const old=player.shareLeaderboard;player.shareLeaderboard=enabled;
+  try{if(!enabled)await deleteDoc(doc(db,"leaderboard",auth.currentUser.uid));if(!await pushCloud())throw Error(err);if(enabled){const snap=await getDoc(doc(db,"leaderboard",auth.currentUser.uid));if(!snap.exists())throw Error("Could not publish leaderboard entry. Check Rules.")}announce(enabled?"Leaderboard sharing on.":"Leaderboard sharing off.",true)}catch(x){player.shareLeaderboard=old;announce(x.message||"Leaderboard setting could not be saved.",true)}render()};
+ let sendChallenge=document.getElementById("sendFriendChallenge");if(sendChallenge)sendChallenge.onclick=sendFriendChallenge;
+ let refreshChallenge=document.getElementById("refreshFriends");if(refreshChallenge)refreshChallenge.onclick=refreshFriendChallenges;
+ document.querySelectorAll("[data-friend-play]").forEach(b=>b.onclick=()=>beginFriendChallenge(b.dataset.friendPlay));
+ let shareButton=document.getElementById("savePublicProfile");if(shareButton)shareButton.onclick=async()=>{
+  const enabled=document.getElementById("sharePublicProfile").checked;
+  if(enabled&&!confirm("Share your name, level and match totals with signed-in players who know your User ID? No email, wallet or inventory is shared."))return;
+  const old=player.sharePublicProfile;player.sharePublicProfile=enabled;
+  try{if(!enabled)await deleteDoc(doc(db,"publicProfiles",auth.currentUser.uid));
+   if(!await pushCloud())throw Error(err);
+   if(enabled){const published=await getDoc(doc(db,"publicProfiles",auth.currentUser.uid));if(!published.exists())throw Error("Profile lookup could not be published. Check Rules and retry.")}
+   announce(enabled?"Player lookup turned on.":"Player lookup turned off and public game profile removed.",true);
+  }catch(x){player.sharePublicProfile=old;announce(x.message||"Could not save lookup choice.",true)}render();
+ };
  let readUid=document.getElementById("readUid");if(readUid)readUid.onclick=()=>{let uid=auth.currentUser?.uid;if(uid){speak("Your User ID is "+uid.split("").join(" "));announce("Your User ID is "+uid.split("").join(" "),true)}};
  let adminLoad=document.getElementById("adminLoad");if(adminLoad)adminLoad.onclick=loadAdminBatch;
  document.querySelectorAll("[data-admin-profile]").forEach(b=>b.onclick=()=>{adminSelectedUid=b.dataset.adminProfile;render()});
@@ -1464,7 +1650,18 @@ function bind(){
   render();
  };
  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buy(b.dataset.buy));
- document.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>sellItem(b.dataset.sell));
+ document.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>{selectedSellItem=b.dataset.sell;render();document.getElementById("sellChoiceItem")?.focus()});
+ let sellChoice=document.getElementById("sellChoiceItem");if(sellChoice)sellChoice.onchange=()=>{selectedSellItem=sellChoice.value};
+ let sellToGame=document.getElementById("sellToGame");if(sellToGame)sellToGame.onclick=()=>sellItem(sellChoice.value);
+ let sellToPlayer=document.getElementById("sellToPlayer");if(sellToPlayer)sellToPlayer.onclick=()=>{selectedSellItem=sellChoice.value;document.getElementById("offerItem").value=selectedSellItem;document.getElementById("offerKind").value="sale";updateOfferPrice();document.getElementById("recipientUid").focus()};
+ let recipient=document.getElementById("recipientUid");if(recipient)recipient.oninput=()=>{recipientPreview=null;document.getElementById("recipientStatus").textContent="Look up the ID to see the player before sending.";document.getElementById("saveRecipient").disabled=true};
+ let saved=document.getElementById("savedRecipient");if(saved)saved.onchange=()=>{recipient.value=saved.value;recipient.oninput();if(saved.value)lookupRecipient()};
+ let lookup=document.getElementById("lookupRecipient");if(lookup)lookup.onclick=lookupRecipient;
+ let saveR=document.getElementById("saveRecipient");if(saveR)saveR.onclick=saveRecipient;
+ let offerKind=document.getElementById("offerKind"),offerItemSelect=document.getElementById("offerItem");
+ if(offerKind){offerKind.onchange=updateOfferPrice;offerItemSelect.onchange=updateOfferPrice;updateOfferPrice()}
+ document.querySelectorAll("[data-copy-uid]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copyUid);announce("User ID copied.",true)}catch{announce("Copy failed. User ID is shown in the saved players list.",true)}});
+ document.querySelectorAll("[data-remove-player]").forEach(b=>b.onclick=async()=>{player.savedPlayers=player.savedPlayers.filter(p=>p.uid!==b.dataset.removePlayer);if(await pushCloud())announce("Saved player removed.",true);render()});
  const offer=document.getElementById("itemOffer");if(offer)offer.onsubmit=offerItem;
  const refresh=document.getElementById("refreshTrades");if(refresh)refresh.onclick=refreshTrades;
  document.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>{if(confirm("Accept this item request and pay the shown ₹ amount, if any?"))decideTrade(b.dataset.accept,true)});
@@ -1519,6 +1716,8 @@ function bind(){
   announce("Background music "+(player.settings.bgm?"on":"off")+".",true);
   saveLocal();pushCloud();render();document.getElementById("matchBgmToggle")?.focus();
  };
+ let retryFriend=document.getElementById("retryFriendScore");if(retryFriend)retryFriend.onclick=async()=>{if(await recordFriendScore(match.friendChallengeId,match.friendSubmissionScore??0))render()};
+ let summary=document.getElementById("downloadSummary");if(summary)summary.onclick=downloadMatchSummary;
  let cb=document.getElementById("continueBtn");if(cb)cb.onclick=closeResultPopup;
  let qb=document.getElementById("quitMatchBtn");if(qb)qb.onclick=()=>{if(confirm("Quit this match? No reward will be earned."))quitMatch()};
  // team
@@ -1575,4 +1774,5 @@ window.addEventListener("keydown",(ev)=>{
 
 render();
 </script></body></html>
+
 
