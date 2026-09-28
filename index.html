@@ -75,7 +75,7 @@ th,td{text-align:left;padding:8px;border-bottom:1px solid #223752;font-size:13px
 <div id="live-urgent" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithPopup,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 /* ==================================================================
@@ -315,9 +315,9 @@ function packLabel(id){return(MANIFEST[id]&&MANIFEST[id].label)||id}
 function sanitizeForCloud(p){let{password,...rest}=p;return rest}
 async function pushCloud(){
  saveLocal();
- if(!auth.currentUser)return;
- try{await setDoc(doc(db,"players",auth.currentUser.uid),{...sanitizeForCloud(player),updatedAt:Date.now()},{merge:true})}
- catch(x){console.log("cloud sync failed",x)}
+ if(!auth.currentUser){err="Save failed: no signed-in user (auth/no-current-user).";announce(err,true);return false}
+ try{await setDoc(doc(db,"players",auth.currentUser.uid),{...sanitizeForCloud(player),updatedAt:Date.now()},{merge:true});err="";return true}
+ catch(x){err="Cloud save failed ("+(x.code||"unknown-error")+"). Your changes are saved on this device only.";console.error("cloud sync failed",x);announce(err,true);return false}
 }
 async function loadForUser(u){
  try{
@@ -335,9 +335,13 @@ async function loadForUser(u){
    saveLocal();
    page="onboarding";
   }
- }catch(x){err="Could not load your profile. Check your connection.";console.log(x)}
+ }catch(x){
+  err="Could not load your profile ("+(x.code||"unknown-error")+"). Check Firebase access or your connection.";
+  console.error("profile load failed",x);
+  booting=false;page="loadError";announce(err,true);render();return;
+ }
  booting=false;
- announce("Google Sign-In successful. Welcome back, "+(player.name||"Player")+". Opening the main menu.",true);
+ announce("Google sign-in successful. Welcome back, "+(player.name||"Player")+".",false);
  render();
 }
 function friendlyAuthError(x){
@@ -362,7 +366,7 @@ setPersistence(auth,browserLocalPersistence)
  .then(()=>{
   onAuthStateChanged(auth,u=>{
    if(u){
-    booting=false;
+    booting=true;
     render();
     loadForUser(u);
    }else{
@@ -887,7 +891,7 @@ function resumeScreen(){
 
 /* ---------------- Auth screens ---------------- */
 function authScreen(){
- root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center"><h1>🏏 Blind Cricket Pro Ultimate</h1><p class="muted">Sign in to save your profile, wallet, career progress and shop items.</p><button id="google" style="width:100%;min-height:52px;font-size:17px">Continue with Google</button>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';
+ root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center"><h1>🏏 Blind Cricket Pro Ultimate</h1><p class="muted">Sign in to save your profile, wallet, career progress and shop items.</p><button id="google" type="button" aria-label="Sign in with Google, opens a new window" style="width:100%;min-height:52px;font-size:17px">Continue with Google</button>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';
  bind();
 }
 function loadingScreen(){
@@ -913,6 +917,11 @@ function render(){
  if(booting){loadingScreen();return}
  if(!auth.currentUser){authScreen();return}
  if(page==="onboarding"){onboardingScreen();return}
+ if(page==="loadError"){
+  root.innerHTML='<main id="main" class="screen" role="alert"><h1>Profile could not load</h1><p>'+e(err)+'</p><button id="retryLoad" type="button">Retry loading profile</button></main>';
+  document.getElementById("retryLoad").onclick=()=>{booting=true;render();loadForUser(auth.currentUser)};
+  return;
+ }
  let body;
  if(page==="home")body=homeHandCricket();
  else if(page==="help")body=helpScreen();
@@ -936,7 +945,19 @@ function render(){
 }
 
 /* ---------------- Event binding ---------------- */
-async function google(){err="";try{await signInWithRedirect(auth,new GoogleAuthProvider())}catch(x){err=friendlyAuthError(x);render()}}
+async function google(){
+ err="";
+ try{await signInWithPopup(auth,new GoogleAuthProvider())}
+ catch(x){
+  if(x.code==="auth/popup-blocked"){
+   announce("The popup was blocked. Continuing with redirect sign-in.",true);
+   try{await signInWithRedirect(auth,new GoogleAuthProvider());return}
+   catch(y){x=y}
+  }
+  err=friendlyAuthError(x)+" ("+(x.code||"unknown-error")+")";
+  announce(err,true);render();
+ }
+}
 async function saveOnboarding(ev){
  ev.preventDefault();
  player.village=document.getElementById("ob_village").value.trim();
@@ -946,10 +967,11 @@ async function saveOnboarding(ev){
  player.familyBackground=document.getElementById("ob_fam").value;
  player.blindCategory=document.getElementById("ob_cat").value;
  player.role=document.getElementById("ob_role").value;
- await pushCloud();
- msg="Saved to Online ✓";
- page="home";
- announce(msg,true);
+ if(await pushCloud()){
+  msg="Saved to Online ✓";
+  page="home";
+  announce(msg,true);
+ }else msg=err;
  render();
 }
 function buy(id){
@@ -982,14 +1004,15 @@ function bind(){
  let obf=document.getElementById("obf");if(obf)obf.onsubmit=saveOnboarding;
  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buy(b.dataset.buy));
  let saveSet=document.getElementById("saveSet");
- if(saveSet)saveSet.onclick=()=>{
+ if(saveSet)saveSet.onclick=async()=>{
   player.settings.tts=document.getElementById("tts").checked;
   player.settings.commentary=document.getElementById("com").checked;
   player.settings.sfx=document.getElementById("sfx").checked;
   player.settings.commentaryVolume=+document.getElementById("cvol").value;
   player.settings.sfxVolume=+document.getElementById("svol").value;
   player.settings.commentator=document.getElementById("commLang").value;
-  pushCloud();msg="Settings saved.";announce(msg,true);render();
+  if(await pushCloud()){msg="Settings saved online.";announce(msg,true)}else msg=err;
+  render();
  };
  let testTts=document.getElementById("testTts");if(testTts)testTts.onclick=()=>speak("Blind Cricket Pro Ultimate. Text to speech is working.");
  let testC=document.getElementById("testCommentary");if(testC)testC.onclick=()=>{
@@ -1037,10 +1060,11 @@ function bind(){
  };
  document.querySelectorAll("[data-removeplayer]").forEach(b=>b.onclick=()=>{squadDraft.splice(+b.dataset.removeplayer,1);render()});
  let stm=document.getElementById("startTeamMatch");if(stm)stm.onclick=()=>{matchSetupState.mode="team";page="matchSetup";render()};
- let cf=document.getElementById("coachForm");if(cf)cf.onsubmit=(ev)=>{
+ let cf=document.getElementById("coachForm");if(cf)cf.onsubmit=async(ev)=>{
   ev.preventDefault();
   player.coach={name:document.getElementById("cName").value.trim(),experience:document.getElementById("cExp").value||0,village:document.getElementById("cVillage").value.trim(),state:document.getElementById("cState").value.trim(),academy:document.getElementById("cAcademy").value.trim(),familyBackground:document.getElementById("cFam").value,blindCategory:document.getElementById("cCat").value,role:document.getElementById("cRole").value,teamsCoached:0,winPct:0,salary:0};
-  pushCloud();msg="Coach profile saved.";announce(msg,true);render();
+  if(await pushCloud()){msg="Coach profile saved online.";announce(msg,true)}else msg=err;
+  render();
  };
  document.querySelectorAll("[data-enter]").forEach(b=>b.onclick=()=>{msg="Entered tournament: "+b.dataset.enter+". Fixtures will use your current match settings.";announce(msg,true);render()});
  document.querySelectorAll("[data-auction]").forEach(b=>b.onclick=()=>{msg=b.dataset.auction+" added to your auction shortlist.";announce(msg,true);render()});
@@ -1064,3 +1088,4 @@ window.addEventListener("keydown",(ev)=>{
 
 render();
 </script></body></html>
+
