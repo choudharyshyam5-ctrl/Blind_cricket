@@ -113,7 +113,7 @@ p{max-width:75ch}
 .modal{background:#0c2a24;border:2px solid var(--gold);max-height:90vh;overflow-y:auto;text-align:left;box-shadow:0 24px 60px #000a}
 .modal h2{text-align:center}
 @media(max-width:600px){.topbar{padding:0 12px}.screen{margin:12px;padding:17px}.card{padding:16px}.sheet{margin:14px 10px 0;padding:18px}.shots{grid-template-columns:repeat(2,minmax(0,1fr))}.row>*{flex:1 1 145px}.nav button{flex:1 1 110px}.logo-text{font-size:clamp(22px,7vw,30px)}.modal{padding:18px}.grid{grid-template-columns:1fr}}
-</style></head><body>
+textarea{display:block;width:100%;min-height:150px;padding:12px;border-radius:12px;border:2px solid #71ac8c;background:#092821;color:#fff8df;font:inherit;resize:vertical;margin:8px 0 16px}textarea:focus{outline:3px solid #e4bc51;outline-offset:2px}.notification-count:not(:empty){display:inline-block;min-width:16px;margin-left:2px;color:#fff2b5;font-size:14px;font-weight:700}</style></head><body>
 <a href="#main" class="skip-link">Skip to main content</a>
 <div id="app"></div>
 <div id="live-gentle" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -121,18 +121,17 @@ p{max-width:75ch}
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithPopup,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import{getFirestore,doc,getDoc,setDoc,collection,query,limit,startAfter,getDocs,where,runTransaction,deleteDoc,orderBy}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import{getFirestore,doc,getDoc,setDoc,collection,query,limit,startAfter,getDocs,where,runTransaction,deleteDoc,orderBy,onSnapshot}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 /* ==================================================================
    1. CORE ENGINE CONFIG
    ================================================================== */
 const cfg=window.__FIREBASE_CONFIG__||{apiKey:"AIzaSyCFPUinpbamY58LSmu9aVUJNdwjXG7BdjU",authDomain:"blind-cricket-efc31.firebaseapp.com",projectId:"blind-cricket-efc31",storageBucket:"blind-cricket-efc31.firebasestorage.app",messagingSenderId:"121893939422",appId:"1:121893939422:web:5a90638fcadf0a2857ba4f",measurementId:"G-W3ZVRH1GCE"};
 const firebaseApp=initializeApp(cfg),auth=getAuth(firebaseApp),db=getFirestore(firebaseApp),root=document.getElementById("app");
-// Set BOTH identifiers to the game owner's real Google Firebase Auth account before deployment.
-// This check hides the UI; the separate Firestore rules MUST also be installed for security.
-const ADMIN_UID="REPLACE_WITH_OWNER_FIREBASE_AUTH_UID";
+// Provisional admin gate: the owner confirmed this address. Tighten with the Firebase UID when supplied.
+// The UI check is not security; Firestore rules enforce the same Google-authenticated identity.
 const ADMIN_EMAIL="choudharyshyan5@gmail.com";
-function isAdmin(){return ADMIN_UID!=="REPLACE_WITH_OWNER_FIREBASE_AUTH_UID"&&ADMIN_EMAIL!=="REPLACE_WITH_OWNER_GOOGLE_EMAIL"&&auth.currentUser?.uid===ADMIN_UID&&auth.currentUser?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase()&&auth.currentUser.emailVerified===true}
+function isAdmin(){const u=auth.currentUser;return !!u&&u.email?.toLowerCase()===ADMIN_EMAIL&&u.emailVerified===true&&u.providerData?.some(p=>p.providerId==="google.com"&&p.email?.toLowerCase()===ADMIN_EMAIL)}
 
 
 const SOUND_BASE_PRIMARY="/blind_cricket/sounds/",SOUND_BASE_FALLBACK="./sounds/";
@@ -267,6 +266,8 @@ let incomingTrades=[],outgoingTrades=[],tradeLoading=false,tradeError="";
 let recipientPreview=null,recipientLookupBusy=false,selectedSellItem="";
 let leaderboardRows=[],leaderboardLoadedDay="",leaderboardError="",challengeRows=[],challengeLoading=false,challengeError="",dailyClaimBusy=false;
 let pendingFriendId=null;
+let incomingNotifications=[],notificationsUnsubscribe=null,notificationUserId=null,notificationReady=false,notificationError="";
+let feedbackRows=[],feedbackLastDoc=null,feedbackAllLoaded=false,feedbackLoading=false,feedbackAdminError="",feedbackError="",feedbackSubmitting=false;
 let profileWriteQueue=Promise.resolve(),lastEconomySync={uid:null,balance:0,inventory:{}};
 let economyBusy=false;
 
@@ -379,11 +380,11 @@ function clipFallbacks(eventKey,selected,dismissalType){
  if(dismissalType)for(const [id,p] of Object.entries(MANIFEST))for(const path of p.events.out||[])if(safeOut(path))candidates.push(path);
  return [...new Set(candidates)];
 }
-function playClip(eventKey,dismissalType){
- if(!player.settings.commentary)return;
+function playClip(eventKey,dismissalType,onUnavailable){
+ if(!player.settings.commentary)return false;
  const clip=dismissalType?pickDismissalClip(dismissalType):pickClip(eventKey);
  const paths=clipFallbacks(eventKey,clip,dismissalType);
- if(!paths.length){commentaryTalking=false;announce("No recording available for "+eventKey+". The text commentary is shown.",false);return}
+ if(!paths.length){commentaryTalking=false;if(!onUnavailable)announce("No recording available for "+eventKey+". The text commentary is shown.",false);return false}
  const generation=++clipGeneration;
  commentaryTalking=true;
  commentaryAudio.onended=()=>{if(generation===clipGeneration)commentaryTalking=false};
@@ -394,7 +395,7 @@ function playClip(eventKey,dismissalType){
  commentaryAudio.volume=player.settings.commentaryVolume??.8;
  function next(){
   if(generation!==clipGeneration)return;
-  if(attempt>=paths.length){commentaryTalking=false;announce("Commentary recording could not play. Text commentary is available.",true);speak(match?.text||"Commentary recording unavailable.");return}
+  if(attempt>=paths.length){commentaryTalking=false;if(onUnavailable)onUnavailable();else{announce("Commentary recording could not play. Text commentary is available.",true);speak(match?.text||"Commentary recording unavailable.")}return}
   let handled=false;
   const retry=()=>{if(handled||generation!==clipGeneration)return;handled=true;next()};
   commentaryAudio.onerror=retry;
@@ -404,11 +405,12 @@ function playClip(eventKey,dismissalType){
   if(started?.catch)started.catch(error=>{
    if(generation!==clipGeneration)return;
    if(error.name==="AbortError")return;
-   if(error.name==="NotAllowedError"){commentaryTalking=false;announce("Commentary audio was blocked on this device. The result is shown in text.",true);speak(match?.text||"Commentary audio unavailable.");return}
+   if(error.name==="NotAllowedError"){commentaryTalking=false;if(onUnavailable)onUnavailable();else{announce("Commentary audio was blocked on this device. The result is shown in text.",true);speak(match?.text||"Commentary audio unavailable.")}return}
    retry();
   });
  }
  next();
+ return true;
 }
 function pickDismissalClip(type){
  const pid=activeCommentaryPack||pickPackForSetting(player.settings.commentator),pack=MANIFEST[pid]||MANIFEST.extra_default;
@@ -560,6 +562,7 @@ async function loadForUser(u){
  }
  match=null;pendingFriendId=null;
  adminRecords=[];adminLastDoc=null;adminAllLoaded=false;adminSelectedUid=null;adminError="";
+ feedbackRows=[];feedbackLastDoc=null;feedbackAllLoaded=false;feedbackAdminError="";feedbackError="";
  booting=false;
  claimDailyLogin(u.uid);
  if(lastLoadedAuthUid!==u.uid){lastLoadedAuthUid=u.uid;announce("Google sign-in successful. Welcome back, "+(player.name||"Player")+".",false);setTimeout(()=>{let live=document.getElementById("live-gentle");if(live?.textContent.startsWith("Google sign-in successful."))live.textContent=""},3500)}
@@ -587,11 +590,13 @@ setPersistence(auth,browserLocalPersistence)
  .then(()=>{
   onAuthStateChanged(auth,u=>{
    if(u){
+    watchIncomingChallenges(u.uid);
     if(lastLoadedAuthUid===u.uid&&!booting)return;
     booting=true;
     render();
     loadForUser(u);
    }else{
+    stopIncomingChallenges();
     lastLoadedAuthUid=null;booting=false;
     if(player.uid)clearLocalSession();
     player={...base,settings:{...DEFAULT_SETTINGS}};
@@ -625,7 +630,7 @@ async function refreshFriendChallenges(){if(challengeLoading||!auth.currentUser)
   getDocs(query(collection(db,"friendChallenges"),where("toUid","==",uid),limit(20)))]);
  challengeRows=[...new Map([...sent.docs,...received.docs].map(d=>[d.id,{id:d.id,...d.data()}])).values()].sort((a,b)=>b.createdAt-a.createdAt);
  }catch(x){challengeError="Could not load friend challenges ("+(x.code||"network-error")+")."}
- finally{challengeLoading=false;if(page==="friends")render()}}
+ finally{challengeLoading=false;if(page==="friends"||page==="notifications")render()}}
 async function sendFriendChallenge(){const uid=auth.currentUser?.uid,toUid=document.getElementById("friendUid")?.value.trim();if(!uid||!toUid||uid===toUid){challengeError="Choose another player's saved ID.";render();return}
  if(!(player.savedPlayers||[]).some(p=>p.uid===toUid)){challengeError="Save this player in Shop before challenging them.";render();return}
  try{const peer=await getDoc(doc(db,"publicProfiles",toUid));if(!peer.exists())throw Error("Player lookup is off for this ID. Ask them to enable it in Profile.");
@@ -644,6 +649,62 @@ async function recordFriendScore(id,score){const uid=auth.currentUser?.uid;if(!u
  const ref=doc(db,"friendChallenges",id);await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())throw Error("Challenge no longer exists.");const c=snap.data(),field=uid===c.fromUid?"fromScore":uid===c.toUid?"toScore":null;if(!field)throw Error("This challenge is not yours.");if(c[field]!=null)return;tx.update(ref,{[field]:Math.max(0,Math.floor(score))})});
  announce("Friend challenge score submitted: "+score+" runs.",true);pendingFriendId=null;return true;
  }catch(x){announce("Friend score could not sync. Keep this match open and use Retry score submission.",true);console.error("friend score",x);return false}
+}
+function stopIncomingChallenges(){if(notificationsUnsubscribe)notificationsUnsubscribe();notificationsUnsubscribe=null;notificationUserId=null;notificationReady=false;notificationSeenIds=new Set();incomingNotifications=[]}
+function pendingNotificationCount(){return incomingNotifications.filter(c=>c.toUid===auth.currentUser?.uid&&c.toScore==null).length}
+function updateNotificationButton(){
+ const button=document.querySelector('[data-p="notifications"]');if(!button)return;
+ const count=pendingNotificationCount();button.setAttribute("aria-label",count?"New notification: "+count+" pending challenge"+(count===1?"":"s"):"Notifications");
+ const label=button.querySelector('.notification-count');if(label)label.textContent=count?String(count):"";
+}
+function watchIncomingChallenges(uid){
+ if(notificationUserId===uid)return;
+ stopIncomingChallenges();notificationUserId=uid;notificationError="";
+ // Live Firestore updates while the game page is open; no browser push or background polling.
+ notificationsUnsubscribe=onSnapshot(query(collection(db,"friendChallenges"),where("toUid","==",uid),limit(20)),snap=>{
+  if(auth.currentUser?.uid!==uid)return;
+  const previous=pendingNotificationCount();
+  incomingNotifications=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const count=pendingNotificationCount();
+  notificationError="";
+  if(notificationReady&&count>previous)announce("New notification. "+count+" pending challenge"+(count===1?"":"s")+". Open Notifications to check.",false);
+  notificationReady=true;updateNotificationButton();if(page==="notifications")render();
+ },x=>{notificationError="Could not watch new challenges ("+(x.code||"network-error")+"). Open Friend challenges and press Refresh.";if(page==="notifications")render()});
+}
+function notificationScreen(){
+ const uid=auth.currentUser?.uid,received=incomingNotifications.filter(c=>c.toUid===uid&&c.toScore==null);
+ return topBar()+'<div class="screen"><h1>Notifications</h1><p>Pending challenges for your signed-in account. Updates appear while this game page is open.</p>'
+ +(notificationError?'<p role="alert">'+e(notificationError)+'</p>':'')
+ +(received.length?'<p role="status">New notification: '+received.length+' pending challenge'+(received.length===1?'':'s')+'.</p><ul>'+received.map(c=>'<li class="card">'+e(c.fromName||"Player")+' ne challenge diya hai. <button type="button" data-open-challenge="'+e(c.id)+'">Open challenge</button></li>').join('')+'</ul>':'<p class="muted">No new notifications.</p>')+'</div>';
+}
+async function submitFeedback(ev){
+ ev.preventDefault();if(feedbackSubmitting)return;
+ const uid=auth.currentUser?.uid,body=document.getElementById("feedbackText")?.value.trim()||"";
+ if(!uid||!body||body.length>2000){feedbackError="Enter your feedback (1 to 2000 characters).";announce(feedbackError,true);render();return}
+ feedbackSubmitting=true;feedbackError="";
+ try{const ref=doc(collection(db,"feedback"));await setDoc(ref,{uid,name:String(auth.currentUser.displayName||player.name||"Player").slice(0,80),email:auth.currentUser.email||"",text:body,createdAt:Date.now()});
+  feedbackError="Feedback submitted. The game owner can read it in the Admin Feedback section.";announce(feedbackError,true);render();
+ }catch(x){feedbackError="Feedback could not be submitted ("+(x.code||"network-error")+"). Try again.";announce(feedbackError,true);let status=document.getElementById("feedbackStatus");if(status)status.textContent=feedbackError}
+ finally{feedbackSubmitting=false}
+}
+async function loadFeedbackBatch(){
+ if(!isAdmin()||feedbackLoading||feedbackAllLoaded)return;
+ feedbackLoading=true;feedbackAdminError="";render();
+ try{const constraints=[orderBy("createdAt","desc"),limit(100)];if(feedbackLastDoc)constraints.push(startAfter(feedbackLastDoc));
+  const snap=await getDocs(query(collection(db,"feedback"),...constraints));
+  if(!isAdmin()){feedbackRows=[];feedbackLastDoc=null;return}
+  feedbackRows.push(...snap.docs.map(d=>({id:d.id,data:d.data()})));if(snap.docs.length)feedbackLastDoc=snap.docs[snap.docs.length-1];feedbackAllLoaded=snap.docs.length<100;
+ }catch(x){feedbackAdminError="Could not read feedback ("+(x.code||"network-error")+"). Check Firebase Rules and your admin sign-in."}
+ finally{feedbackLoading=false;if(page==="admin")render()}
+}
+function downloadFeedbackData(){
+ if(!isAdmin())return;
+ if(feedbackLoading){announce("Wait for the current feedback page to finish loading.",true);return}
+ if(!feedbackAllLoaded&&!confirm("Only "+feedbackRows.length+" feedback messages are loaded. Download a partial CSV? Load all feedback pages for a complete export."))return;
+ const header=["ID","Received","User ID","Name","Email","Feedback"];
+ const lines=[header.map(csvCell).join(","),...feedbackRows.map(row=>[row.id,adminDate(row.data.createdAt),row.data.uid,row.data.name,row.data.email,row.data.text].map(csvCell).join(","))];
+ const blob=new Blob(["\ufeff",lines.join("\r\n")+"\r\n"],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="blind-cricket-feedback-"+(feedbackAllLoaded?"full":"partial")+".csv";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+ announce((feedbackAllLoaded?"Full":"Partial")+" feedback CSV downloading: "+feedbackRows.length+" messages.",true);
 }
 function leaderboardScreen(){return topBar()+nav()+'<div class="screen"><h1>Top 10 leaderboard</h1><p>Only players who opted in appear. Ranked by match wins. Loads at most once a day per open app, or when you press Refresh.</p><label><input id="shareLeaderboard" type="checkbox" '+(player.shareLeaderboard?'checked':'')+'> Share my name, wins, runs and level on the leaderboard</label><button id="saveLeaderboard">Save leaderboard choice</button><button id="refreshLeaderboard" class="secondary">Refresh top 10</button>'+(leaderboardError?'<p role="alert">'+e(leaderboardError)+'</p>':'')+'<ol>'+leaderboardRows.map(p=>'<li>'+e(p.name)+' - '+(p.wins||0)+' wins; '+(p.runs||0)+' runs; Level '+(p.level||1)+'</li>').join('')+'</ol></div>'}
 function friendsScreen(){return topBar()+nav()+'<div class="screen"><h1>Friend challenges</h1><p>Both players face a 30-run target in a 3-over match versus computer. One attempt each, no entry fee or wallet transfer. Higher batting score wins; equal scores are tied. Refresh to see new challenges.</p><label>Saved player<select id="friendUid"><option value="">Choose a saved player</option>'+savedPlayerOptions()+'</select></label><button id="sendFriendChallenge">Send challenge</button><button id="refreshFriends" class="secondary">Refresh challenges</button>'+(challengeError?'<p role="alert">'+e(challengeError)+'</p>':'')+'<ul>'+challengeRows.map(c=>{let uid=auth.currentUser?.uid,own=uid===c.fromUid?c.fromScore:c.toScore,other=uid===c.fromUid?c.toScore:c.fromScore,peer=uid===c.fromUid?c.toName:c.fromName,done=own!=null&&other!=null;return '<li class="card">Against '+e(peer)+'; target '+c.target+' in '+c.overs+' overs. Your score '+(own==null?'pending':own)+'. Their score '+(other==null?'pending':other)+'. '+(done?(own===other?'Tie.':own>other?'You won.':'They won.'):'')+(own==null?'<button data-friend-play="'+e(c.id)+'">Play my attempt</button>':'')+'</li>'}).join('')+'</ul></div>'}
@@ -714,6 +775,7 @@ function startMatch(){
   playerBatRuns:0,playerBatFours:0,playerBatSixes:0,playerBallsFaced:0,
   playerBowlWickets:0,playerRunsConceded:0,playerBallsBowled:0,
   bowlWicketStreak:0,allOut:false,dailyDay:gameDay(),dailyEligible:!isTest()&&m.mode==="daily"&&m.overs===3,friendChallengeId:m.mode==="friend"?pendingFriendId:null,
+  teamBatting:m.mode==="team"?{lineup:squadDraft.map(x=>({name:x.name,cat:x.cat})),striker:0,nonStriker:1,next:2,fallen:[]}:null,
  };
  activeCommentaryPack=pickPackForSetting(player.settings.commentator);
  syncBgm();playClip("toss");
@@ -727,13 +789,22 @@ function oppositeSide(s){return s==="player"?"ai":"player"}
 
 function pushLog(t){match.log.unshift(t);if(match.log.length>40)match.log.length=40}
 
-function applyB1(runs){
- if(player.blindCategory==="B1"&&runs>0){announce("You get double runs!");return runs*2}
- return runs;
-}
+function currentTeamBatter(){const state=match?.teamBatting;return state?.lineup?.[state.striker]||null}
+function battingCategory(){return matchSetupState.mode==="team"?currentTeamBatter()?.cat:player.blindCategory}
+function applyB1(runs){return battingCategory()==="B1"&&runs>0?runs*2:runs}
+function swapTeamStrike(){const t=match?.teamBatting;if(t)[t.striker,t.nonStriker]=[t.nonStriker,t.striker]}
 function rotateStrikeIfNeeded(runs){
- if([1,3,5].includes(runs)){match.onStrikeNote="Strike changes.";}else{match.onStrikeNote=""}
+ const changes=[1,3,5].includes(runs);if(changes&&matchSetupState.mode==="team")swapTeamStrike();
+ match.onStrikeNote=changes?"Strike changes.":"";
 }
+function teamWicket(){const t=match?.teamBatting;if(!t)return;
+ const fallen=t.lineup[t.striker];if(fallen)t.fallen.push(t.striker);
+ if(t.next<t.lineup.length){t.striker=t.next++;match.onStrikeNote=(fallen?.name||"Batter")+" is out. "+t.lineup[t.striker].name+" comes in."}
+ else{match.onStrikeNote=(fallen?.name||"Batter")+" is out. All out."}
+}
+function teamOverEnds(){if(matchSetupState.mode==="team"&&match.current==="player"&&currentInnings().balls%6===0){swapTeamStrike();match.onStrikeNote=(match.onStrikeNote?match.onStrikeNote+" ":"")+"Over ended, strike changes."}}
+function resetTeamBatters(){const t=match?.teamBatting;if(t){t.striker=0;t.nonStriker=1;t.next=2;t.fallen=[]}}
+
 
 function doPlayerShot(shotKey){
  if(match.current!=="player"||match.done||match.awaitingFollowOn)return;
@@ -743,22 +814,32 @@ function doPlayerShot(shotKey){
  match.playerBallsFaced++;
  if(res.out){
   inn.wickets++;
-  let how=dismissalType();match.text="OUT! "+how+". Wicket falls.";
-  playClip("out",how);speak(match.text);announce(match.text,true);
+  const batterName=currentTeamBatter()?.name||"";
+  if(matchSetupState.mode==="team")teamWicket();
+  let how=dismissalType();match.text="OUT! "+how+". "+(batterName?batterName+" is out. ":"")+"Wicket falls."+(match.onStrikeNote?" "+match.onStrikeNote:"");
+  const outText=match.text;const outStarted=playClip("out",how,()=>announce(outText,true));if(!outStarted)announce(outText,true);
   pushLog(how+". Wicket "+inn.wickets+"/"+wicketsLimit());
  }else{
+  const batterName=currentTeamBatter()?.name||"";
+  const batterCategory=battingCategory()||"unknown";
+  const b1=batterCategory==="B1";
   let runs=applyB1(res.r);
   inn.runs+=runs;
   match.playerBatRuns+=runs;
   if(res.four){inn.fours++;match.playerBatFours++}
   if(res.six){inn.sixes++;match.playerBatSixes++}
   rotateStrikeIfNeeded(res.r);
-  match.text=res.six?"SIX!":res.four?"FOUR!":runs>0?(runs+" run"+(runs===1?"":"s")+" completed."):"Dot ball. No run.";
-  playClip(res.six?"6":res.four?"4":String(res.r));
-  announce(match.text,true);
-  speak(match.text+(match.onStrikeNote?" "+match.onStrikeNote:""));
+  match.text=(batterName?batterName+" ("+batterCategory+"): ":"")+(res.six?"SIX! ":res.four?"FOUR! ":"")+(runs>0?runs+" run"+(runs===1?"":"s")+" scored"+(runs!==res.r?" (B1 double runs)":"")+".":"Dot ball. No run.");
+  // Commentary names the physical shot (six/four); B1 bonus changes the score, not shot audio.
+  // If commentary cannot play, announce only the physical shot; B1 bonus is score-only.
+  const physical=res.r===0?"0 run":res.r+" run"+(res.r===1?"":"s");
+  const reportRuns=()=>announce(physical,true);
+  const live=document.getElementById("live-urgent");if(live)live.textContent="";
+  const clipStarted=playClip(res.six?"6":res.four?"4":String(res.r),null,reportRuns);
+  if(!clipStarted)reportRuns();
   pushLog(match.text);
  }
+ if(matchSetupState.mode==="team"&&match.current==="player"&&inn.balls%6===0&&inn.wickets<wicketsLimit()){teamOverEnds();match.text+=" "+match.onStrikeNote}
  afterBall();
 }
 function doPlayerBowl(deliveryKey){
@@ -820,7 +901,7 @@ function endInnings(reason){
  }
  if(match.playerTotal===match.aiTotal&&!match.superOver){
   match.regularScores={player:match.playerTotal,ai:match.aiTotal};match.playerTotal=0;match.aiTotal=0;
-  match.superOver=true;match.superFirst="player";match.innings=3;match.maxInnings=4;match.current="player";match.sides.player=newInningsState();match.sides.ai=newInningsState();match.target=null;
+  resetTeamBatters();match.superOver=true;match.superFirst="player";match.innings=3;match.maxInnings=4;match.current="player";match.sides.player=newInningsState();match.sides.ai=newInningsState();match.target=null;
   match.text="Scores tied. Super Over: one over each, batting first. Highest runs wins. A second tie remains a draw.";
   announce(match.text,true);saveMatchCheckpoint();render();return;
  }
@@ -1047,7 +1128,7 @@ function topBar(){
  +'<div class="tb-left">'+av+'<div><div class="tb-name">'+e(player.name)+'</div><div class="tb-sub"><span>Lvl '+player.level+'</span><span>⭐</span><span>'+money(player.balance)+'</span></div></div></div>'
  +'<div class="tb-right">'
  +'<button class="iconbtn" data-p="tournaments" aria-label="Tournaments">✉️</button>'
- +'<button class="iconbtn" data-p="notifications" aria-label="Notifications">🔔</button>'
+ +'<button class="iconbtn" data-p="notifications" aria-label="'+(pendingNotificationCount()?"New notification: "+pendingNotificationCount()+" pending challenges":"Notifications")+'">🔔<span class="notification-count">'+(pendingNotificationCount()||"")+'</span></button>'
  +'<button class="iconbtn" data-p="shop" aria-label="Shop">🛍️</button>'
  +'<button class="iconbtn" id="menuBtn" aria-label="Menu" aria-haspopup="true" aria-expanded="'+(menuOpen?"true":"false")+'">▦</button>'
  +'</div></header>';
@@ -1058,7 +1139,7 @@ function menuOverlay(){
   ["home","Home"],["matchSetup","Play Match"],["career","Career"],["profile","Profile"],["shop","Shop"],
   ["mycollection","My Collection"],["mySquad","My Squad"],["teamCreate","Team Create"],["teamVsTeam","Team Vs Team"],
   ["coach","Coach Profile"],["tournaments","Tournaments"],["ibplAuction","IBPL Auction / Owner Mode"],
-  ["settings","Settings"],["resume","Resume Match / Tournament"],...(isAdmin()?[["admin","Admin Stats"]]:[]),["logout","Logout"]
+  ["settings","Settings"],["resume","Resume Match / Tournament"],...(isAdmin()?[["admin","Open Admin Page"]]:[]),["logout","Logout"]
  ];
  return '<div class="modal-back" id="menuBack"><div class="modal" style="text-align:left;max-width:360px" role="dialog" aria-label="Menu"><h2 style="text-align:center">Menu</h2><div class="grid menu-grid" style="grid-template-columns:1fr">'
  +items.filter(([id])=>{
@@ -1080,7 +1161,7 @@ async function loadAdminBatch(){
   adminRecords.push(...snap.docs.map(d=>({id:d.id,data:d.data()})));
   if(snap.docs.length)adminLastDoc=snap.docs[snap.docs.length-1];
   adminAllLoaded=snap.docs.length<100;
- }catch(ex){adminError="Could not read player stats ("+(ex.code||"unknown-error")+"). Check that the admin IDs match and Firestore rules are published."}
+ }catch(ex){adminError="Could not read player stats ("+(ex.code||"unknown-error")+"). Check verified Google admin sign-in and published Firestore rules."}
  finally{adminLoading=false;if(page==="admin")render()}
 }
 function adminDate(value){
@@ -1099,6 +1180,24 @@ function adminProfile(row){
  return '<section class="card" aria-label="Individual player profile"><h2>'+e(p.name||"Unnamed player")+'</h2><dl>'+
  fields.map(([label,value])=>'<dt><strong>'+e(label)+'</strong></dt><dd>'+e(value??"Not recorded")+'</dd>').join("")+'</dl></section>';
 }
+const ADMIN_EXPORT_FIELDS=[
+ ["User ID",(d,id)=>id],["Name",d=>d.name],["Email",d=>d.email],["Joined",d=>adminDate(d.createdAt)],["Last saved",d=>adminDate(d.updatedAt)],
+ ["Village/city",d=>d.village],["State",d=>d.state],["Age",d=>d.age],["Academy",d=>d.academy],["Blind category",d=>d.blindCategory],["Role",d=>d.role],
+ ["Career level",d=>d.level],["Level name",d=>levelData(Number(d.level)||1).title],["Matches",d=>d.matches],["Wins",d=>d.wins],["Losses",d=>d.losses],
+ ["Runs",d=>d.runs],["Wickets",d=>d.wickets],["Fours",d=>d.fours],["Sixes",d=>d.sixes],["Fifties",d=>d.fifties],["Centuries",d=>d.centuries],
+ ["Best score",d=>d.bestScore],["Best spell",d=>d.bestSpell],["Batting average",d=>d.batAvg],["Bowling average",d=>d.bowlAvg],
+ ["Strike rate",d=>d.strikeRate],["Economy",d=>d.economy],["Hat-tricks",d=>d.hatTricks],["Player of Match",d=>d.playerOfMatch],
+ ["Tournaments won",d=>d.tournamentsWon],["Tournament matches won",d=>d.tournamentMatchesWon],["Quits",d=>d.quits],["Game wallet INR",d=>d.balance]
+];
+function csvCell(value){let str=String(value??"");if(/^[\s]*[=+\-@]/.test(str))str="'"+str;return '"'+str.replace(/"/g,'""')+'"'}
+function downloadAdminData(){if(!isAdmin())return;
+ if(adminLoading){announce("Wait for the current player page to finish loading before export.",true);return}
+ if(!adminAllLoaded&&!confirm("Only "+adminRecords.length+" player profiles are loaded. Download a partial CSV? Use Load next 100 until the page says all profiles loaded for a full export."))return;
+ const lines=[ADMIN_EXPORT_FIELDS.map(([name])=>csvCell(name)).join(","),...adminRecords.map(row=>ADMIN_EXPORT_FIELDS.map(([,get])=>csvCell(get(row.data,row.id))).join(","))];
+ const blob=new Blob(["\ufeff",lines.join("\r\n")+"\r\n"],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="blind-cricket-player-data-"+(adminAllLoaded?"full":"partial")+".csv";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+ announce((adminAllLoaded?"Full":"Partial")+" player data CSV downloading: "+adminRecords.length+" profiles.",true);
+}
 function adminScreen(){
  if(!isAdmin())return topBar()+'<div class="screen" role="alert"><h1>Access denied</h1><p>This page is restricted to the game owner.</p></div>';
  const sum=key=>adminRecords.reduce((n,row)=>n+(Number(row.data[key])||0),0);
@@ -1111,11 +1210,16 @@ function adminScreen(){
  +'<div class="grid">'+[["Saved players",adminRecords.length],["Matches played",sum("matches")],["Wins",sum("wins")],["Losses",sum("losses")],["Tournaments won",sum("tournamentsWon")]].map(([label,value])=>'<div class="card"><strong>'+e(label)+'</strong><p>'+value+(complete?'':' so far')+'</p></div>').join("")+'</div>'
  +'<p class="muted">Saved players are not necessarily every Firebase Authentication signup. Past profiles may lack a join date. Totals are complete only once every batch loads, and use Firestore reads from the free daily quota.</p>'
  +(adminLoading?'<p role="status">Loading profiles...</p>':adminAllLoaded?'':'<button id="adminLoad" type="button">Load next 100 player profiles</button>')
+ +'<button id="adminDownload" type="button">Download full data (CSV)</button><p class="muted">For a complete CSV, load every 100-player batch first. A partial download is labeled partial.</p>'
  +'<h2>Top players by wins'+(complete?'':' (loaded so far)')+'</h2><ol>'+top.map(row=>'<li>'+e(row.data.name||"Unnamed player")+' - '+(+row.data.wins||0)+' wins</li>').join("")+'</ol>'
  +'<h2>Recent players by recorded join date'+(complete?'':' (loaded so far)')+'</h2><ol>'+recent.map(row=>'<li>'+e(row.data.name||"Unnamed player")+' - '+e(adminDate(row.data.createdAt))+'</li>').join("")+'</ol>'
  +'<h2>Individual profiles'+(complete?'':' (loaded so far)')+'</h2><ul>'+adminRecords.map(row=>'<li><button type="button" class="secondary" data-admin-profile="'+e(row.id)+'">View '+e(row.data.name||"Unnamed player")+' (ID '+e(row.id)+')</button></li>').join("")+'</ul>'
  +(selected?adminProfile(selected):'<p>Select a player to see their saved profile.</p>')
- +'<p>Feedback: no in-game form or feedback collection is configured yet.</p></div>';
+ +'<h2>Feedback</h2><p>Private messages submitted by signed-in players. Load all pages for a complete list.</p>'
+ +(feedbackAdminError?'<p role="alert">'+e(feedbackAdminError)+'</p>':'')
+ +(feedbackLoading?'<p role="status">Loading feedback...</p>':feedbackAllLoaded?'<p>All feedback loaded.</p>':'<button id="feedbackLoad" type="button">Load next 100 feedback messages</button>')
+ +'<button id="feedbackDownload" type="button">Download feedback (CSV)</button>'
+ +'<ul>'+feedbackRows.map(row=>'<li class="card"><b>'+e(row.data.name||"Player")+'</b> ('+e(row.data.email||"")+') - '+e(adminDate(row.data.createdAt))+'<p>'+e(row.data.text||"")+'</p></li>').join('')+'</ul></div>';
 }
 function nav(){return'<div class="nav" style="margin-bottom:10px"><button class="secondary" data-p="home">Home</button><button class="secondary" data-p="career">Career</button><button class="secondary" data-p="profile">Profile</button><button class="secondary" data-p="shop">Shop</button><button class="secondary" data-p="settings">Settings</button></div>'}
 
@@ -1123,7 +1227,7 @@ function homeHandCricket(){
  return topBar()
  +'<div class="logo-wrap"><div class="logo-emoji" aria-hidden="true">BC</div><div class="logo-text">BLIND CRICKET</div><div class="logo-base"></div></div>'
  +'<div class="sheet"><div class="sheet-handle"></div>'
- +'<button class="contact" data-p="help">ANY ISSUES??? CONTACT US</button>'
+ +'<button class="contact" data-p="help">Feedback / Query</button>'
  +'<button class="bigbtn" data-p="matchSetup" data-mode="cpu"><b>PLAY VERSUS COMPUTER</b><span>Play versus offline robot</span></button>'
  +'<button class="bigbtn" data-p="teamVsTeam"><b>TEAM VERSUS COMPUTER</b><span>Set up your 11-player squad, then play a computer team</span></button>'
  +'<div class="badge">B1 rule: Minimum 4 B1 players required for 11 players.</div>'
@@ -1132,7 +1236,7 @@ function homeHandCricket(){
  +'<div class="row" style="margin-top:14px">'+(resumableMatch()?'<button class="secondary" id="resumeHome">Resume Saved Match</button>':'<span class="muted">No saved match to resume.</span>')+'<button class="secondary" data-p="resumeTournament">'+(activeTournament()?'Continue Offline Tournament':'Offline Tournaments')+'</button></div>'
  +'</div>';
 }
-function helpScreen(){return topBar()+'<div class="screen"><h1>Contact / Issues</h1><p>To report a bug, note the screen, action, and error code. Contact details will be added when the developer confirms the public number.</p><button class="secondary" data-p="home">Back</button></div>'}
+function helpScreen(){return topBar()+'<div class="screen"><h1>Feedback / Query</h1><p>Send a private message to the game owner. Your signed-in name and email will be included.</p><form id="feedbackForm"><label>Name<input value="'+e(auth.currentUser?.displayName||player.name||"Player")+'" readonly></label><label>Email<input type="email" value="'+e(auth.currentUser?.email||"")+'" readonly></label><label for="feedbackText">Enter your feedback</label><textarea id="feedbackText" required minlength="1" maxlength="2000" rows="6" placeholder="Feedback or query"></textarea><button type="submit">Submit</button></form><p id="feedbackStatus" role="status">'+e(feedbackError)+'</p><button class="secondary" data-p="home">Back</button></div>'}
 
 function careerScreen(){
  let cur=levelData(player.level),nxt=nextLevelData(player.level);
@@ -1351,7 +1455,7 @@ function matchSetupScreen(mode){
  let test=matchSetupState.innings==="test";
  let isTeam=matchSetupState.mode==="team";
  return topBar()+'<div class="screen"><h1>🏏 Match Setup</h1>'
- +'<div class="badge">Blind Cricket Rules: B1 players receive double runs. Strike rotates on 1, 3 and 5.</div>'
+ +'<div class="badge">Blind Cricket Rules: In team mode the current squad batter determines B1 double runs. The two batters swap strike on base shot results 1, 3 and 5, and at the end of each over. A wicket brings in the next squad member. Outside team mode, your profile category determines B1 runs.</div>'
  +(test?'<div class="card"><h3>Test length</h3><p>450 overs total for both teams, four innings, ten wickets per innings. Follow-on, declarations and draw are available.</p></div>':'<div class="card" style="margin-top:14px"><h3>Overs per innings</h3><div class="pill-row">'+[1,5,10,20,50].map(n=>'<button class="pill '+(matchSetupState.overs===n?"active":"")+'" data-overs="'+n+'">'+n+'</button>').join("")+'<input id="customOvers" type="number" min="1" max="50" step="1" aria-label="Custom overs, whole number from 1 to 50" placeholder="Custom overs" style="width:140px"></div></div>')
  +'<div class="card" style="margin-top:14px"><h3>Format</h3><div class="pill-row">'+["One Day","T20","Test"].map(f=>'<button class="pill '+(matchSetupState.format===f?"active":"")+'" data-format="'+f+'">'+f+'</button>').join("")+'</div></div>' 
  +(test?'<p role="status">Test match: two batting innings per team, with an overall 450-over limit. Win by runs, wickets, or an innings; a draw is possible.</p>':(isTeam?'<div class="badge">Team Mode: 11 players, automatically 10 wickets, minimum 4 B1 players required.</div>':'<div class="card" style="margin-top:14px"><h3>Wickets</h3><div class="pill-row">'+[1,2,5,10].map(n=>'<button class="pill '+(matchSetupState.wicketsLimit===n?"active":"")+'" data-wkts="'+n+'">'+n+'</button>').join("")+'<input id="customWkts" type="number" min="1" max="10" placeholder="Custom" style="width:100px"></div></div>'))
@@ -1369,7 +1473,9 @@ function matchScreen(){
  let ballsLeft=ballsLimit()-inn.balls;
  let header=(match.dailyEligible?'<p role="status">Daily target: '+dailyTarget(match.dailyDay)+' runs in this 3-over match, reward '+money(150)+'.</p>':'')+(match.friendChallengeId?'<p role="status">Friend challenge: score at least 30 runs in 3 overs. One attempt only.</p>':'')+(match.superOver?'<p role="status">Super Over. One over each; second tie is a draw.</p>':'')+(isTest()?'<p role="status">'+e(testStatus())+'</p>':'')+(matchSetupState.mode==="tournament"?'<p role="status">Tournament round '+player.offlineTournament.round+' of '+player.offlineTournament.requiredWins+'. Opponent: '+e(opponentLabel(match.opponentTeam))+'.</p>':'')+'<div class="grid"><div class="card"><span class="muted">Score</span><div class="stat">'+inn.runs+'/'+inn.wickets+'</div><p>Over '+Math.floor(inn.balls/6)+'.'+(inn.balls%6)+'; '+(isTest()?Math.floor(match.testBallsUsed/6)+'.'+(match.testBallsUsed%6)+' of 450 overs used in match': 'of '+matchSetupState.overs+' overs per innings')+'</p></div>'
   +'<div class="card"><span class="muted">'+(match.target!=null&&match.innings>1?"Target":"Innings")+'</span><div class="stat">'+(match.target!=null&&match.innings>1?match.target:(match.innings+"/"+match.maxInnings))+'</div></div></div>';
- let commentary='<div class="commentary" role="status" aria-live="polite"><b>Commentary</b><br>'+e(match.text)+(match.onStrikeNote?"<br>"+e(match.onStrikeNote):"")+'</div>';
+ let teamBatter=currentTeamBatter();
+ let teamStatus=matchSetupState.mode==="team"&&side==="player"&&teamBatter?'<div class="card"><b>On strike: '+e(teamBatter.name)+' ('+e(teamBatter.cat)+')</b><p>Non-striker: '+e(match.teamBatting.lineup[match.teamBatting.nonStriker]?.name||"None")+'. Next batter: '+e(match.teamBatting.lineup[match.teamBatting.next]?.name||"Last pair")+'. Wickets: '+inn.wickets+'/10. B1 doubles the runs credited for the shot.</p></div>':'';
+ let commentary='<div class="commentary"><b>Commentary</b><br>'+e(match.text)+'</div>';
  let controls;
  if(isTest()&&match.awaitingFollowOn){
   controls='<h2>Follow-on decision</h2><p>You lead by at least 200 runs. Choose whether the opponent bats again now.</p><button id="enforceFollowOn">Enforce follow-on</button> <button id="declineFollowOn" class="secondary">Bat again</button>';
@@ -1391,7 +1497,7 @@ function matchScreen(){
    +'<button data-ball="spin">Spin</button>'
    +'</div>';
  }
- return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1><button id="matchBgmToggle" type="button" aria-pressed="'+(player.settings.bgm?'true':'false')+'">Background music '+(player.settings.bgm?'on':'off')+'</button>'+header+commentary+controls+
+ return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1><button id="matchBgmToggle" type="button" aria-pressed="'+(player.settings.bgm?'true':'false')+'">Background music '+(player.settings.bgm?'on':'off')+'</button>'+header+teamStatus+commentary+controls+
  (testCanDeclare()?'<button id="declareTest" class="secondary" aria-label="Declare this Test innings after at least one over">Declare innings</button>':'')+'<div class="log" style="margin-top:14px">'+match.log.map(l=>'<div class="tag" style="display:block;margin:4px 0">'+e(l)+'</div>').join("")+'</div><button class="secondary" id="quitMatchBtn" style="margin-top:14px">Quit Match</button></div>';
 }
 function quitMatch(){
@@ -1456,7 +1562,7 @@ function teamVsTeamScreen(){
  return topBar()+'<div class="screen"><h1>Team Vs Team</h1>'
  +'<div class="card"><h3>Your Team</h3><p>'+(player.teamName?e(player.teamName)+" ("+e(player.teamId)+")":"You have not created a team yet.")+'</p></div>'
  +'<div class="card" style="margin-top:14px"><h3>Opponent Team</h3><select id="oppTeam">'+oppNames.map(n=>'<option value="'+e(n)+'">'+e(n.replace(/_/g," "))+'</option>').join("")+'</select></div>'
- +'<div class="badge">11-player mode: automatically 10 wickets. Minimum 4 B1 players required in your squad. This is a simulated computer match; individual squad players do not take turns yet.</div>'
+ +'<div class="badge">11-player mode: automatically 10 wickets. Minimum 4 B1 players required in your squad. This is a simulated computer match; your 11 squad batters enter in lineup order, and B1 doubles runs only when on strike.</div>'
  +'<div class="row" style="margin-top:14px"><button id="startTeamMatch" '+(player.teamId&&squadDraft.length===11&&squadDraft.filter(p=>p.cat==="B1").length>=4?"":"disabled")+'>Start Team Match Versus Computer</button><button class="secondary" data-p="home">Cancel</button></div>'
  +(player.teamId?'<p class="muted">Add exactly 11 players, including four B1, in My Squad. Opponents here are computer teams.</p>':'<p class="muted">Create a team first.</p>')
  +'</div>';
@@ -1552,7 +1658,7 @@ function render(){
  else if(page==="ibplAuction")body=ibplAuctionScreen();
  else if(page==="resume")body=resumeScreen();
  else if(page==="resumeTournament")body=tournamentsScreen();
- else if(page==="notifications")body=topBar()+'<div class="screen"><h1>Notifications</h1><p class="muted">No new notifications.</p></div>';
+ else if(page==="notifications")body=notificationScreen();
  else body=homeHandCricket();
  root.innerHTML='<div class="wrap"><main id="main">'+(msg?'<div class="notice">'+e(msg)+'</div>':'')+body+'</main></div>'+(match?.done?"":menuOverlay());
  bind();
@@ -1604,7 +1710,7 @@ function bind(){
  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
   let mode=b.dataset.mode;
   if(mode)matchSetupState.mode=mode;
-  page=b.dataset.p;msg="";menuOpen=false;render();if(page==="shop")refreshTrades();if(page==="leaderboard")loadLeaderboard();if(page==="friends")refreshFriendChallenges();
+  page=b.dataset.p;msg="";menuOpen=false;render();if(page==="shop")refreshTrades();if(page==="leaderboard")loadLeaderboard();if(page==="friends"||page==="notifications")refreshFriendChallenges();
  });
  let menuBtn=document.getElementById("menuBtn");if(menuBtn)menuBtn.onclick=()=>{if(match?.done){menuOpen=false;return}menuOpen=!menuOpen;render()};
  let menuBack=document.getElementById("menuBack");if(menuBack)menuBack.onclick=(ev)=>{if(ev.target===menuBack){menuOpen=false;render()}};
@@ -1613,7 +1719,7 @@ function bind(){
   if(id==="logout"){doLogout();return}
   if(id==="matchSetup"){matchSetupState.mode="cpu"}
   if(id==="admin"&&!isAdmin()){page="home";render();return}
-  page=id;render();if(id==="leaderboard")loadLeaderboard();if(id==="friends")refreshFriendChallenges();if(id==="admin"&&!adminRecords.length&&!adminLoading)loadAdminBatch();if(id==="shop")refreshTrades();
+  page=id;render();if(id==="leaderboard")loadLeaderboard();if(id==="friends")refreshFriendChallenges();if(id==="admin"&&!adminRecords.length&&!adminLoading)loadAdminBatch();if(id==="admin"&&!feedbackRows.length&&!feedbackLoading)loadFeedbackBatch();if(id==="shop")refreshTrades();
  });
  let rh=document.getElementById("resumeHome"),rm=document.getElementById("resumeFromMenu"),rt=document.getElementById("resumeTourMatch"),nt=document.getElementById("nextTourRound");
  if(rh)rh.onclick=resumeMatch;if(rm)rm.onclick=resumeMatch;if(rt)rt.onclick=resumeMatch;
@@ -1624,6 +1730,10 @@ function bind(){
   try{if(!enabled)await deleteDoc(doc(db,"leaderboard",auth.currentUser.uid));if(!await pushCloud())throw Error(err);if(enabled){const snap=await getDoc(doc(db,"leaderboard",auth.currentUser.uid));if(!snap.exists())throw Error("Could not publish leaderboard entry. Check Rules.")}announce(enabled?"Leaderboard sharing on.":"Leaderboard sharing off.",true)}catch(x){player.shareLeaderboard=old;announce(x.message||"Leaderboard setting could not be saved.",true)}render()};
  let sendChallenge=document.getElementById("sendFriendChallenge");if(sendChallenge)sendChallenge.onclick=sendFriendChallenge;
  let refreshChallenge=document.getElementById("refreshFriends");if(refreshChallenge)refreshChallenge.onclick=refreshFriendChallenges;
+ document.querySelectorAll("[data-open-challenge]").forEach(b=>b.onclick=()=>{page="friends";render();});
+ let feedbackForm=document.getElementById("feedbackForm");if(feedbackForm)feedbackForm.onsubmit=submitFeedback;
+ let feedbackLoad=document.getElementById("feedbackLoad");if(feedbackLoad)feedbackLoad.onclick=loadFeedbackBatch;
+ let feedbackDownload=document.getElementById("feedbackDownload");if(feedbackDownload)feedbackDownload.onclick=downloadFeedbackData;
  document.querySelectorAll("[data-friend-play]").forEach(b=>b.onclick=()=>beginFriendChallenge(b.dataset.friendPlay));
  let shareButton=document.getElementById("savePublicProfile");if(shareButton)shareButton.onclick=async()=>{
   const enabled=document.getElementById("sharePublicProfile").checked;
@@ -1637,6 +1747,7 @@ function bind(){
  };
  let readUid=document.getElementById("readUid");if(readUid)readUid.onclick=()=>{let uid=auth.currentUser?.uid;if(uid){speak("Your User ID is "+uid.split("").join(" "));announce("Your User ID is "+uid.split("").join(" "),true)}};
  let adminLoad=document.getElementById("adminLoad");if(adminLoad)adminLoad.onclick=loadAdminBatch;
+ let adminDownload=document.getElementById("adminDownload");if(adminDownload)adminDownload.onclick=downloadAdminData;
  document.querySelectorAll("[data-admin-profile]").forEach(b=>b.onclick=()=>{adminSelectedUid=b.dataset.adminProfile;render()});
  let g=document.getElementById("google");if(g)g.onclick=google;
  let obf=document.getElementById("obf");if(obf)obf.onsubmit=saveOnboarding;
@@ -1754,7 +1865,7 @@ function bind(){
  });
 }
 async function doLogout(){
- fadeBgm(0);
+ stopIncomingChallenges();fadeBgm(0);
  await signOut(auth);
  clearLocalSession();
  stopCommentary();stopResultSound();
