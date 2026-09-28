@@ -202,7 +202,7 @@ function tournamentUnlocked(t,p){return p.matches>=t.reqMatches&&p.wins>=t.reqWi
 /* ==================================================================
    2. PLAYER DATA STRUCTURE
    ================================================================== */
-const DEFAULT_SETTINGS={tts:true,commentary:true,sfx:true,bgm:true,bgmVolume:.5,commentaryVolume:.8,sfxVolume:.8,commentator:"extra_default"};
+const DEFAULT_SETTINGS={tts:true,commentary:true,sfx:true,bgm:true,bgmVolume:.25,commentaryVolume:.8,sfxVolume:.8,commentator:"extra_default"};
 const base={
  uid:"",email:"",name:"Player",photoURL:"",balance:2000,level:1,xp:0,
  matches:0,wins:0,losses:0,runs:0,wickets:0,fours:0,sixes:0,fifties:0,centuries:0,
@@ -260,6 +260,7 @@ function money(n){return "₹"+Math.round(n).toLocaleString("en-IN")}
    ================================================================== */
 function speak(t){
  if(!player.settings.tts||!window.speechSynthesis)return;
+ if(page==="match"&&player.settings.commentary&&commentaryTalking)return;
  speechSynthesis.cancel();
  let u=new SpeechSynthesisUtterance(t);
  u.volume=player.settings.commentaryVolume??.8;
@@ -298,61 +299,98 @@ function pickPackForSetting(commentator){
  return MANIFEST[commentator]?commentator:"extra_default";
 }
 const clipCursor={};
-function pickClip(eventKey,packId){
- let pid=packId||activeCommentaryPack||pickPackForSetting(player.settings.commentator);
- let pack=MANIFEST[pid]||MANIFEST.extra_default;
- let key=normEvent(eventKey);
- let files=pack.events[key];
- if(!files||!files.length){
-  // A missing language-pack event falls back to a random clip in the same
-  // named folder at sounds/extra/<event>. Never substitute another event.
-  files=(MANIFEST.extra_default.events[key]||[]).filter(path=>path.startsWith("extra/"+key+"/"));
-  if(!files.length)return null;
-  return{pid:"extra_default",path:files[Math.floor(Math.random()*files.length)]};
- }
- let cursorKey=pid+":"+key;
- let index=clipCursor[cursorKey]||0;
- let f=files[index%files.length];
+function rotateClip(pid,key,files){
+ const cursorKey=pid+":"+key,index=clipCursor[cursorKey]||0;
  clipCursor[cursorKey]=(index+1)%files.length;
- return{pid,path:f};
+ return {pid,path:files[index%files.length]};
+}
+function pickClip(eventKey,packId){
+ const pid=packId||activeCommentaryPack||pickPackForSetting(player.settings.commentator);
+ const pack=MANIFEST[pid]||MANIFEST.extra_default,key=normEvent(eventKey);
+ const own=pack.events[key];if(own?.length)return rotateClip(pid,key,own);
+ // First try any other commentator in the chosen language, then the direct
+ // sounds/extra/<event> folder. Never substitute a different event.
+ const sameLanguage=Object.entries(MANIFEST).filter(([id,p])=>id!==pid&&p.lang===pack.lang&&p.events[key]?.length);
+ if(sameLanguage.length){const [id,p]=sameLanguage[Math.floor(Math.random()*sameLanguage.length)];return rotateClip(id,key,p.events[key])}
+ const folder=(MANIFEST.extra_default.events[key]||[]).filter(path=>path.startsWith("extra/"));
+ return folder.length?{pid:"extra_default",path:folder[Math.floor(Math.random()*folder.length)]}:null;
 }
 let activeCommentaryPack=null;
-let commentaryAudio=new Audio();
-commentaryAudio.preload="none";
+const commentaryAudio=new Audio();commentaryAudio.preload="auto";
+let clipGeneration=0,commentaryTalking=false;
+const SOUND_ROOT="./sounds/"; // GitHub Pages repository URL is case-sensitive: /Blind_cricket/.
+function soundUrl(path){return SOUND_ROOT+path.split("/").map(encodeURIComponent).join("/")}
+function clipFallbacks(eventKey,selected,dismissalType){
+ const key=normEvent(eventKey),sameLang=selected&&MANIFEST[selected.pid]?.lang;
+ const candidates=[];
+ if(selected)candidates.push(selected.path);
+ const safeOut=path=>!dismissalType||/(?:^|\/)out(?:-\d+)?\.|gone|wicket|wicked|out sound clip|wkt st/i.test(path.split("/").at(-1))||({Caught:/catch|caught|quat behind/i,Bowled:/bowl|bold/i,"Run out":/run out/i,LBW:/lbw/i,Stumped:/stump/i}[dismissalType]?.test(path));
+ for(const [id,p] of Object.entries(MANIFEST))if(id!==selected?.pid&&p.lang===sameLang)for(const path of p.events[key]||[])if(safeOut(path))candidates.push(path);
+ for(const path of MANIFEST.extra_default.events[key]||[])if(path.startsWith("extra/"+key+"/")&&safeOut(path))candidates.push(path);
+ if(dismissalType)for(const [id,p] of Object.entries(MANIFEST))for(const path of p.events.out||[])if(safeOut(path))candidates.push(path);
+ return [...new Set(candidates)];
+}
 function playClip(eventKey,dismissalType){
  if(!player.settings.commentary)return;
- let clip=dismissalType?pickDismissalClip(dismissalType):pickClip(eventKey);
- if(!clip)return;
- let primary=SOUND_BASE_PRIMARY+clip.path.split("/").map(encodeURIComponent).join("/");
- let fallback=SOUND_BASE_FALLBACK+clip.path.split("/").map(encodeURIComponent).join("/");
- commentaryAudio.pause();
- commentaryAudio.currentTime=0;
+ const clip=dismissalType?pickDismissalClip(dismissalType):pickClip(eventKey);
+ const paths=clipFallbacks(eventKey,clip,dismissalType);
+ if(!paths.length){commentaryTalking=false;announce("No recording available for "+eventKey+". The text commentary is shown.",false);return}
+ const generation=++clipGeneration;
+ commentaryTalking=true;
+ commentaryAudio.onended=()=>{if(generation===clipGeneration)commentaryTalking=false};
+ let attempt=0;
+ commentaryAudio.pause();commentaryAudio.onerror=null;
+ try{commentaryAudio.currentTime=0}catch{}
+ if(window.speechSynthesis)speechSynthesis.cancel();
  commentaryAudio.volume=player.settings.commentaryVolume??.8;
- commentaryAudio.src=primary;
- commentaryAudio.onerror=()=>{commentaryAudio.onerror=null;commentaryAudio.src=fallback;commentaryAudio.play().catch(()=>{})};
- commentaryAudio.play().catch(()=>{});
+ function next(){
+  if(generation!==clipGeneration)return;
+  if(attempt>=paths.length){commentaryTalking=false;announce("Commentary recording could not play. Text commentary is available.",false);return}
+  let handled=false;
+  const retry=()=>{if(handled||generation!==clipGeneration)return;handled=true;next()};
+  commentaryAudio.onerror=retry;
+  commentaryAudio.src=soundUrl(paths[attempt++]);
+  // Start immediately in the shot/toss gesture; no 404 against wrong-case path.
+  const started=commentaryAudio.play();
+  if(started?.catch)started.catch(error=>{
+   if(generation!==clipGeneration)return;
+   if(error.name==="AbortError")return;
+   if(error.name==="NotAllowedError"){commentaryTalking=false;announce("Tap a match control to enable commentary audio.",false);return}
+   retry();
+  });
+ }
+ next();
 }
 function pickDismissalClip(type){
  const pid=activeCommentaryPack||pickPackForSetting(player.settings.commentator),pack=MANIFEST[pid]||MANIFEST.extra_default;
  const patterns={"Caught":/catch|caught|quat behind/i,"Bowled":/bowl|bold/i,"Run out":/run out/i,"LBW":/lbw/i,"Stumped":/stump/i};
- const filter=patterns[type];
- for(const [id,p] of [[pid,pack],["extra_default",MANIFEST.extra_default]]){
+ const filter=patterns[type],language=pack.lang;
+ // Prefer the correct dismissal type in the selected pack, then the same language.
+ for(const [id,p] of [[pid,pack],...Object.entries(MANIFEST).filter(([id,p])=>id!==pid&&p.lang===language)]){
   const files=(p.events.out||[]).filter(path=>filter.test(path));
-  if(files.length){let key=id+":out:"+type,i=clipCursor[key]||0;clipCursor[key]=(i+1)%files.length;return{pid:id,path:files[i%files.length]}}
+  if(files.length)return rotateClip(id,"out:"+type,files);
  }
- const generic=MANIFEST.extra_default.events.out.filter(path=>/gone|wicket|out sound clip|out-1/i.test(path));
- if(generic.length){let key="extra_default:out:generic",i=clipCursor[key]||0;clipCursor[key]=(i+1)%generic.length;return{pid:"extra_default",path:generic[i%generic.length]}}
- return null; // Spoken/TalkBack dismissal text remains exact if no recording exists.
+ // A generic out sound is safe for any dismissal. If none, pick a recording
+ // explicitly named for this type from any pack; never announce a wrong type.
+ const generic=[];
+ for(const [id,p] of [[pid,pack],...Object.entries(MANIFEST).filter(([id,p])=>id!==pid&&p.lang===language),...Object.entries(MANIFEST).filter(([id,p])=>p.lang!==language)])for(const path of p.events.out||[])
+  if(/(?:^|\/)out(?:-\d+)?\.|gone|wicket|wicked|out sound clip|wkt st/i.test(path.split("/").at(-1)))generic.push({pid:id,path});
+ if(generic.length)return generic[0];
+ for(const [id,p] of Object.entries(MANIFEST)){
+  const exact=(p.events.out||[]).filter(path=>filter.test(path));
+  if(exact.length)return rotateClip(id,"out:"+type,exact);
+ }
+ return null;
 }
 function dismissalType(){return ["Caught","Bowled","Run out","LBW","Stumped"][Math.floor(Math.random()*5)]}
-function stopCommentary(){commentaryAudio.pause();commentaryAudio.currentTime=0}
+function stopCommentary(){clipGeneration++;commentaryTalking=false;commentaryAudio.pause();commentaryAudio.onerror=null;try{commentaryAudio.currentTime=0}catch{}}
 let resultAudio=new Audio();
 function playResultSound(win){
  resultAudio.pause();resultAudio.currentTime=0;
  let clip=pickClip(win?"win":"lose");
  if(clip){
-  resultAudio.src=SOUND_BASE_PRIMARY+clip.path.split("/").map(encodeURIComponent).join("/");
-  resultAudio.onerror=()=>{resultAudio.src=SOUND_BASE_FALLBACK+clip.path.split("/").map(encodeURIComponent).join("/");resultAudio.play().catch(()=>{})};
+  resultAudio.src=soundUrl(clip.path);
+  resultAudio.onerror=null;
   resultAudio.volume=player.settings.sfxVolume??.8;
   resultAudio.play().catch(()=>{});
  }
@@ -361,12 +399,20 @@ function playResultSound(win){
 function stopResultSound(){resultAudio.pause();resultAudio.currentTime=0}
 // Owner-uploaded background music file. Ensure its usage rights before public launch.
 const BGM_PATH="extra/b_g_m.mp3";
-const bgmAudio=new Audio();bgmAudio.loop=true;bgmAudio.preload="none";bgmAudio.volume=0;
-let bgmFadeTimer=null;
+const bgmAudio=new Audio();bgmAudio.loop=true;bgmAudio.preload="auto";bgmAudio.volume=0;
+bgmAudio.src=soundUrl(BGM_PATH);bgmAudio.load();
+let bgmFadeTimer=null,bgmPlayPending=false;
 function fadeBgm(target,duration=750){
  if(bgmFadeTimer){clearInterval(bgmFadeTimer);bgmFadeTimer=null}
  const start=bgmAudio.volume,steps=15,delta=(target-start)/steps;
- if(target>0&&bgmAudio.paused)bgmAudio.play().catch(()=>{});
+ if(target>0&&bgmAudio.paused&&!bgmPlayPending){
+  bgmPlayPending=true;
+  const promise=bgmAudio.play();
+  if(promise?.then)promise.then(()=>{bgmPlayPending=false}).catch(error=>{
+   bgmPlayPending=false;
+   if(error.name!=="AbortError")bgmAudio.addEventListener("canplay",()=>{if(player.settings.bgm&&match&&!match.done)bgmAudio.play().catch(()=>{})},{once:true});
+  });else bgmPlayPending=false;
+ }
  let n=0;bgmFadeTimer=setInterval(()=>{
   n++;bgmAudio.volume=Math.max(0,Math.min(1,start+delta*n));
   if(n>=steps){clearInterval(bgmFadeTimer);bgmFadeTimer=null;if(target===0)bgmAudio.pause()}
@@ -374,9 +420,9 @@ function fadeBgm(target,duration=750){
 }
 function syncBgm(){
  if(!BGM_PATH){bgmAudio.pause();return} // No unsuitable win/lose track as background.
- const url=SOUND_BASE_FALLBACK+BGM_PATH.split("/").map(encodeURIComponent).join("/");
- if(bgmAudio.src!==new URL(url,location.href).href)bgmAudio.src=url;
- fadeBgm(player.settings.bgm&&auth.currentUser?Number(player.settings.bgmVolume??.5):0);
+ const url=soundUrl(BGM_PATH);
+ if(bgmAudio.src!==new URL(url,location.href).href){bgmAudio.src=url;bgmAudio.load()}
+ fadeBgm(player.settings.bgm&&auth.currentUser&&match&&!match.done?Number(player.settings.bgmVolume??.25):0);
 }
 
 function packLabel(id){return(MANIFEST[id]&&MANIFEST[id].label)||id}
@@ -553,7 +599,7 @@ function startMatch(){
   bowlWicketStreak:0,allOut:false,
  };
  activeCommentaryPack=pickPackForSetting(player.settings.commentator);
- playClip("toss");syncBgm();
+ syncBgm();playClip("toss");
  page="match";
  saveMatchCheckpoint();
  render();
@@ -1125,7 +1171,7 @@ function settingsScreen(){
  +'<label><input id="com" type="checkbox" '+(player.settings.commentary?"checked":"")+'> Match commentary audio</label>'
  +'<label><input id="sfx" type="checkbox" '+(player.settings.sfx?"checked":"")+'> Sound effects</label>'
  +'<label><input id="bgm" type="checkbox" '+(player.settings.bgm?"checked":"")+(BGM_PATH?"":" disabled")+'> Background music'+(BGM_PATH?"":" (waiting for a music track)")+'</label>'
- +'<label>Background music volume (0 to 100 percent)<input id="bgmvol" type="range" min="0" max="1" step=".05" value="'+(player.settings.bgmVolume??.5)+'" '+(BGM_PATH?"":"disabled")+'></label>'
+ +'<label>Background music volume (0 to 100 percent)<input id="bgmvol" type="range" min="0" max="1" step=".05" value="'+(player.settings.bgmVolume??.25)+'" '+(BGM_PATH?"":"disabled")+'></label>'
  +'<label>Commentary volume <input id="cvol" type="range" min="0" max="1" step=".1" value="'+player.settings.commentaryVolume+'"></label>'
  +'<label>SFX volume <input id="svol" type="range" min="0" max="1" step=".1" value="'+player.settings.sfxVolume+'"></label>'
  +'<label>Commentary language<select id="commLang"><optgroup label="By language (random pack)">'+langOptions+'</optgroup><optgroup label="Specific commentator">'+packOptions+'</optgroup></select></label>'
@@ -1181,7 +1227,7 @@ function matchScreen(){
    +'<button data-ball="spin">Spin</button>'
    +'</div>';
  }
- return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1>'+header+commentary+controls+
+ return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1><button id="matchBgmToggle" type="button" aria-pressed="'+(player.settings.bgm?'true':'false')+'">Background music '+(player.settings.bgm?'on':'off')+'</button>'+header+commentary+controls+
  (testCanDeclare()?'<button id="declareTest" class="secondary" aria-label="Declare this Test innings after at least one over">Declare innings</button>':'')+'<div class="log" style="margin-top:14px">'+match.log.map(l=>'<div class="tag" style="display:block;margin:4px 0">'+e(l)+'</div>').join("")+'</div><button class="secondary" id="quitMatchBtn" style="margin-top:14px">Quit Match</button></div>';
 }
 function quitMatch(){
@@ -1443,8 +1489,8 @@ function bind(){
   let pid=pickPackForSetting(tempCommentator);
   let clip=pickClip("4",pid);
   if(clip){
-   let a=new Audio(SOUND_BASE_PRIMARY+clip.path.split("/").map(encodeURIComponent).join("/"));
-   a.onerror=()=>{a.src=SOUND_BASE_FALLBACK+clip.path.split("/").map(encodeURIComponent).join("/");a.play().catch(()=>{})};
+   let a=new Audio(soundUrl(clip.path));
+   a.onerror=()=>announce("Test clip could not play.",true);
    a.play().catch(()=>{});
    announce("Playing test clip from "+packLabel(clip.pid),true);
   }
@@ -1468,6 +1514,11 @@ function bind(){
  let decline=document.getElementById("declineFollowOn");if(decline)decline.onclick=()=>{if(followOnAllowed()&&confirm("Are you sure you want to bat again instead of enforcing the follow-on?"))chooseFollowOn(false)};
  document.querySelectorAll("[data-shot]").forEach(b=>b.onclick=()=>doPlayerShot(b.dataset.shot));
  document.querySelectorAll("[data-ball]").forEach(b=>b.onclick=()=>doPlayerBowl(b.dataset.ball));
+ let matchBgmToggle=document.getElementById("matchBgmToggle");if(matchBgmToggle)matchBgmToggle.onclick=()=>{
+  player.settings.bgm=!player.settings.bgm;syncBgm();
+  announce("Background music "+(player.settings.bgm?"on":"off")+".",true);
+  saveLocal();pushCloud();render();document.getElementById("matchBgmToggle")?.focus();
+ };
  let cb=document.getElementById("continueBtn");if(cb)cb.onclick=closeResultPopup;
  let qb=document.getElementById("quitMatchBtn");if(qb)qb.onclick=()=>{if(confirm("Quit this match? No reward will be earned."))quitMatch()};
  // team
