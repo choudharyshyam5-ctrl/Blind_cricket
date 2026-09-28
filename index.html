@@ -269,7 +269,7 @@ let pendingFriendId=null;
 let incomingNotifications=[],notificationsUnsubscribe=null,notificationUserId=null,notificationReady=false,notificationError="";
 let feedbackRows=[],feedbackLastDoc=null,feedbackAllLoaded=false,feedbackLoading=false,feedbackAdminError="",feedbackError="",feedbackSubmitting=false;
 let profileWriteQueue=Promise.resolve(),lastEconomySync={uid:null,balance:0,inventory:{}};
-let economyBusy=false;
+let economyBusy=false,logoutBusy=false,logoutTimer=null,logoutNotice="",syncStatus="",profileReady=false,recoveryBusy=false;
 
 let matchSetupState={overs:5,format:"T20",innings:2,wicketsLimit:5,mode:"cpu",toss:null};
 let booting=true,signInWaitExpired=false;
@@ -285,8 +285,70 @@ function loadLocal(){
   return{...base,...raw,settings:{...DEFAULT_SETTINGS,...(raw.settings||{})},inventory:raw.inventory||{},formatWins:raw.formatWins||{},history:raw.history||[],achievements:raw.achievements||[],savedPlayers:Array.isArray(raw.savedPlayers)?raw.savedPlayers:[],friendScores:raw.friendScores||{}};
  }catch{return{...base,settings:{...DEFAULT_SETTINGS}}}
 }
-function saveLocal(){localStorage.setItem("BCPU_PLAYER_V2",JSON.stringify(player));if(player.uid)localStorage.setItem("blindCricketCurrentUser",player.uid)}
-function clearLocalSession(){localStorage.removeItem("BCPU_PLAYER_V2");localStorage.removeItem("blindCricketCurrentUser");localStorage.removeItem("BCPU");localStorage.removeItem("BCPU_GUEST")}
+function saveLocal(){
+ if(!player.uid)return;
+ localStorage.setItem("BCPU_PLAYER_V2",JSON.stringify(player));
+ localStorage.setItem("blindCricketCurrentUser",player.uid);
+}
+function meaningfulProgress(p){return !!p?.uid&&((Number(p.matches)||0)>0||(Number(p.level)||0)>1||(Number(p.xp)||0)>0||(Number(p.balance??2000)!==2000)||(Array.isArray(p.squad)&&p.squad.length>0)||!!p.teamId||(Array.isArray(p.history)&&p.history.length>0)||Object.keys(p.inventory||{}).length>0||!!p.village||!!p.state||!!p.academy||!!p.age||!!p.coach||!!p.offlineTournament)}
+function syncSummary(p){return "Level "+(p.level||1)+", XP "+(p.xp||0)+", matches "+(p.matches||0)+", squad "+(p.squad?.length||0)+", team "+(p.teamName||"none")+", game money "+(p.balance||0)}
+function recoverySnapshotKey(uid){return "blindCricketRecovery_"+uid}
+function keepRecoveryCopy(local,cloud){
+ if(!local?.uid||!meaningfulProgress(local))return;
+ const key=recoverySnapshotKey(local.uid),existing=localStorage.getItem(key);
+ let prior;try{prior=existing?JSON.parse(existing):null}catch{}
+ // Preserve the strongest local snapshot, never replace it with another device's cloud copy.
+ const better=!prior||((Number(local.matches)||0)>(Number(prior.matches)||0))||((Number(local.level)||0)>(Number(prior.level)||0))||((Number(local.xp)||0)>(Number(prior.xp)||0))||((local.squad?.length||0)>(prior.squad?.length||0));
+ if(better)try{localStorage.setItem(key,JSON.stringify(local))}catch(x){console.warn("recovery copy could not be stored",x)}
+}
+async function checkCloudSave(){
+ const uid=auth.currentUser?.uid;if(!uid||player.uid!==uid)return;
+ try{const snap=await getDoc(doc(db,"players",uid));
+  syncStatus=snap.exists()?"Online: "+syncSummary(snap.data())+". This device: "+syncSummary(player)+". Review saved device data before any recovery upload.":"No online profile found. Device: "+syncSummary(player)+". Review saved device data before upload.";
+ }catch(x){syncStatus="Could not check online data ("+(x.code||"network-error")+"). Your device data has not been erased."}
+ announce(syncStatus,true);render();
+}
+function reviewRecovery(){
+ const uid=auth.currentUser?.uid;if(!uid)return;
+ let copy;try{copy=JSON.parse(localStorage.getItem(recoverySnapshotKey(uid))||"null")}catch{}
+ if(!copy||copy.uid!==uid){syncStatus="No saved recovery copy for this Google account.";render();return}
+ syncStatus="Saved on this device: "+syncSummary(copy)+". Online data will be checked before you can upload. No change has been made.";
+ page="recovery";render();
+}
+function recoveryScreen(){
+ const uid=auth.currentUser?.uid;let copy;try{copy=JSON.parse(localStorage.getItem(recoverySnapshotKey(uid))||"null")}catch{}
+ if(!copy||copy.uid!==uid)return topBar()+'<div class="screen"><h1>Saved device data</h1><p>No matching copy for this account.</p><button data-p="home">Back</button></div>';
+ return topBar()+'<div class="screen"><h1>Saved device data</h1><p>Your local copy has not been erased or uploaded.</p><p>Device copy: '+e(syncSummary(copy))+'</p><p role="status">'+e(syncStatus)+'</p><button type="button" id="compareRecovery">Compare with cloud and review upload</button><button data-p="home" class="secondary">Back</button></div>';
+}
+async function compareRecovery(){
+ const uid=auth.currentUser?.uid;if(!uid||recoveryBusy)return;
+ recoveryBusy=true;
+ try{const raw=localStorage.getItem(recoverySnapshotKey(uid)),copy=JSON.parse(raw||"null");if(!copy||copy.uid!==uid)throw Error("Device copy not found for this account.");
+  const snap=await getDoc(doc(db,"players",uid)),cloud=snap.exists()?snap.data():null;
+  syncStatus="Device: "+syncSummary(copy)+". Cloud: "+(cloud?syncSummary(cloud):"no profile")+". Nothing has been changed.";
+  const cloudMeaningful=meaningfulProgress(cloud);
+  if(cloudMeaningful){syncStatus+=" Cloud has game progress; automatic overwrite is blocked. Ask for help merging the two copies.";announce(syncStatus,true);render();return}
+  const reason=cloud?"Cloud has no game progress.":"Cloud has no profile.";
+  const proceed=confirm(reason+" Restore the saved device profile to this same Google account? This replaces the cloud profile, including its game money and settings. Device: "+syncSummary(copy)+". Cloud: "+(cloud?syncSummary(cloud):"none")+".");
+  if(!proceed){render();return}
+  // Re-read in a transaction: another device may have progressed while this dialog was open.
+  const ref=doc(db,"players",uid);await runTransaction(db,async tx=>{const fresh=await tx.get(ref);if(meaningfulProgress(fresh.exists()?fresh.data():null))throw Error("Cloud progress changed. Upload stopped without overwriting it.");
+   const restored=JSON.parse(JSON.stringify(sanitizeForCloud(copy)));restored.uid=uid;restored.email=auth.currentUser.email||restored.email||"";restored.updatedAt=Date.now();tx.set(ref,restored)
+  });
+  const verify=await getDoc(ref);if(!verify.exists()||verify.data().uid!==uid)throw Error("Upload could not be verified.");
+  syncStatus="Device profile uploaded and verified online. Reload the game to see it.";announce(syncStatus,true);render();
+ }catch(x){syncStatus="Recovery not uploaded ("+(x.code||x.message||"network-error")+"). Device copy kept. Please retry or ask for help.";announce(syncStatus,true);render()}
+ finally{recoveryBusy=false}
+}
+function showSyncStatus(){
+ const u=auth.currentUser;if(!u||!player.uid||player.uid!==u.uid)return "";
+ return '<div class="card" role="status"><h2>Cloud save status</h2><p>'+e(syncStatus||"Signed in. Use Check cloud save to compare this device and online data.")+'</p><button id="checkCloudSave" type="button">Check cloud save</button>'+
+ (localStorage.getItem(recoverySnapshotKey(u.uid))?'<button id="reviewRecovery" type="button" class="secondary">Review saved data on this device</button>':'')+'</div>';
+}
+function clearLocalSession(){
+ // Do not erase saved game data on sign-out: it may be the only copy if cloud sync failed.
+ localStorage.removeItem("blindCricketCurrentUser");
+}
 // A checkpoint belongs to one signed-in UID. Each ball is written locally first,
 // then queued to Firestore so a slower previous save cannot overwrite a later ball.
 function saveMatchCheckpoint(clear=false){
@@ -312,6 +374,7 @@ function money(n){return "₹"+Math.round(n).toLocaleString("en-IN")}
    Accessibility helpers: speak / announce / beep
    ================================================================== */
 function speak(t){
+ if(match?.done&&page==="match")return;
  if(!player.settings.tts||!window.speechSynthesis)return;
  if(page==="match"&&player.settings.commentary&&commentaryTalking)return;
  speechSynthesis.cancel();
@@ -384,6 +447,7 @@ function clipFallbacks(eventKey,selected,dismissalType){
  return [...new Set(candidates)];
 }
 function playClip(eventKey,dismissalType,onUnavailable){
+ if(match?.done)return false;
  if(!player.settings.commentary)return false;
  const clip=dismissalType?pickDismissalClip(dismissalType):pickClip(eventKey);
  const paths=clipFallbacks(eventKey,clip,dismissalType);
@@ -455,25 +519,27 @@ function stopResultSound(){resultAudio.pause();resultAudio.currentTime=0}
 const BGM_PATH="extra/b_g_m.mp3";
 const bgmAudio=new Audio();bgmAudio.loop=true;bgmAudio.preload="auto";bgmAudio.volume=0;
 bgmAudio.src=soundUrl(BGM_PATH);bgmAudio.load();
-let bgmFadeTimer=null,bgmPlayPending=false;
+let bgmFadeTimer=null,bgmPlayPending=false,bgmFadeToken=0;
 function fadeBgm(target,duration=750){
+ target=Math.max(0,Math.min(1,Number(target)||0));
+ ++bgmFadeToken;
  if(bgmFadeTimer){clearInterval(bgmFadeTimer);bgmFadeTimer=null}
- const start=bgmAudio.volume,steps=15,delta=(target-start)/steps;
+ const start=bgmAudio.volume,steps=15,delta=(target-start)/steps,token=bgmFadeToken;
  if(target>0&&bgmAudio.paused&&!bgmPlayPending){
   bgmPlayPending=true;
   const promise=bgmAudio.play();
   if(promise?.then)promise.then(()=>{bgmPlayPending=false}).catch(error=>{
    bgmPlayPending=false;
-   if(error.name!=="AbortError")bgmAudio.addEventListener("canplay",()=>{if(player.settings.bgm&&match&&!match.done)bgmAudio.play().catch(()=>{})},{once:true});
+   if(error.name!=="AbortError")bgmAudio.addEventListener("canplay",()=>{if(token===bgmFadeToken&&player.settings.bgm&&match&&!match.done)bgmAudio.play().catch(()=>{})},{once:true});
   });else bgmPlayPending=false;
  }
  let n=0;bgmFadeTimer=setInterval(()=>{
   n++;bgmAudio.volume=Math.max(0,Math.min(1,start+delta*n));
-  if(n>=steps){clearInterval(bgmFadeTimer);bgmFadeTimer=null;if(target===0)bgmAudio.pause()}
+  if(n>=steps){bgmAudio.volume=target;clearInterval(bgmFadeTimer);bgmFadeTimer=null;if(target===0)bgmAudio.pause()}
  },Math.max(20,duration/steps));
 }
 function syncBgm(){
- if(!BGM_PATH){bgmAudio.pause();return} // No unsuitable win/lose track as background.
+ if(!BGM_PATH){fadeBgm(0);return} // No unsuitable win/lose track as background.
  const url=soundUrl(BGM_PATH);
  if(bgmAudio.src!==new URL(url,location.href).href){bgmAudio.src=url;bgmAudio.load()}
  fadeBgm(player.settings.bgm&&auth.currentUser&&match&&!match.done?Number(player.settings.bgmVolume??.25):0);
@@ -497,7 +563,7 @@ function savedPlayersPanel(){return '<h2>Saved Players</h2>'+(player.savedPlayer
 function rememberEconomy(uid,data){lastEconomySync={uid,balance:Number(data.balance)||0,inventory:JSON.parse(JSON.stringify(data.inventory||{}))}}
 async function pushCloud(){
  saveLocal();
- if(!auth.currentUser){err="Save failed: no signed-in user (auth/no-current-user).";announce(err,true);return false}
+ if(!auth.currentUser||!profileReady||player.uid!==auth.currentUser.uid){err="Save paused until your Google account and profile finish loading. Device data is preserved.";announce(err,true);return false}
  const uid=auth.currentUser.uid;
  profileWriteQueue=profileWriteQueue.catch(()=>{}).then(async()=>{
   const ref=doc(db,"players",uid),snapshot=JSON.parse(JSON.stringify(sanitizeForCloud(player)));
@@ -531,19 +597,20 @@ async function pushCloud(){
    }
   }
  });
- try{await profileWriteQueue;err="";return true}
- catch(x){err="Cloud save failed ("+(x.code||x.message||"unknown-error")+"). Your changes are saved on this device only.";console.error("cloud sync failed",x);announce(err,true);return false}
+ try{await profileWriteQueue;syncStatus="Cloud save complete for this Google account.";err="";return true}
+ catch(x){keepRecoveryCopy(player,null);err="Cloud save failed ("+(x.code||x.message||"unknown-error")+"). Your changes are saved on this device only.";syncStatus=err;console.error("cloud sync failed",x);announce(err,true);return false}
 }
 async function loadForUser(u){
- try{
+ profileReady=false;try{
   let snap=await getDoc(doc(db,"players",u.uid));
   if(snap.exists()){
    let cloud=snap.data();
    let local=loadLocal();
    let checkpoint=local.uid===u.uid&&local.matchCheckpoint&&(!cloud.matchCheckpoint||local.matchCheckpoint.savedAt>cloud.matchCheckpoint.savedAt)?local.matchCheckpoint:cloud.matchCheckpoint||null;
-   let useCloud=!local.updatedAt||!cloud.updatedAt||cloud.updatedAt>=local.updatedAt;
-   let src=useCloud?cloud:local;
+   if(local.uid===u.uid&&meaningfulProgress(local)&&JSON.stringify(sanitizeForCloud(local))!==JSON.stringify(sanitizeForCloud(cloud)))keepRecoveryCopy(local,cloud);
+   const src=cloud; // Authoritative across devices; never silently select stale local state.
    player={...base,...src,sharePublicProfile:src.sharePublicProfile!==false,matchCheckpoint:checkpoint,uid:u.uid,email:u.email||src.email||"",photoURL:u.photoURL||src.photoURL||"",name:src.name||u.displayName||"Player",settings:{...DEFAULT_SETTINGS,...(src.settings||{})},inventory:cloud.inventory||{},balance:cloud.balance??src.balance,formatWins:src.formatWins||{},history:src.history||[],achievements:src.achievements||[],savedPlayers:Array.isArray(src.savedPlayers)?src.savedPlayers:[],friendScores:src.friendScores||{}};
+   syncStatus=localStorage.getItem(recoverySnapshotKey(u.uid))?"Cloud data loaded. A saved device copy is available for review; nothing was uploaded automatically.":"Cloud data loaded for this Google account.";
    rememberEconomy(u.uid,cloud);saveLocal();
    if(player.sharePublicProfile)try{await setDoc(doc(db,"publicProfiles",u.uid),publicProfile(player,u.uid))}catch(x){console.warn("public profile publish",x)}
    if(player.shareLeaderboard)try{await setDoc(doc(db,"leaderboard",u.uid),leaderboardProfile(player,u.uid))}catch(x){console.warn("leaderboard publish",x)}
@@ -551,17 +618,20 @@ async function loadForUser(u){
    page="home";
   }else{
    let local=loadLocal();
+   if(local.uid===u.uid&&meaningfulProgress(local))keepRecoveryCopy(local,null);
    player={...base,sharePublicProfile:true,matchCheckpoint:local.uid===u.uid?local.matchCheckpoint:null,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player",createdAt:Date.now()};
+   syncStatus=localStorage.getItem(recoverySnapshotKey(u.uid))?"No online profile found. Your saved device copy is preserved for review. Do not log out or clear site data until you have uploaded it.":"No online profile found. Complete onboarding to create one.";
    rememberEconomy(u.uid,player);saveLocal();
    if(player.sharePublicProfile)try{await setDoc(doc(db,"publicProfiles",u.uid),publicProfile(player,u.uid))}catch(x){console.warn("public profile publish",x)}
    if(player.shareLeaderboard)try{await setDoc(doc(db,"leaderboard",u.uid),leaderboardProfile(player,u.uid))}catch(x){console.warn("leaderboard publish",x)}
    squadDraft=Array.isArray(player.squad)?player.squad:[];
-   page="onboarding";
+   page=localStorage.getItem(recoverySnapshotKey(u.uid))?"home":"onboarding";
   }
+  profileReady=true;
  }catch(x){
   err="Could not load your profile ("+(x.code||"unknown-error")+"). Check Firebase access or your connection.";
   console.error("profile load failed",x);
-  booting=false;finishSignInWait();page="loadError";announce(err,true);render();return;
+  profileReady=false;booting=false;finishSignInWait();page="loadError";announce(err,true);render();return;
  }
  match=null;pendingFriendId=null;
  adminRecords=[];adminLastDoc=null;adminAllLoaded=false;adminSelectedUid=null;adminError="";
@@ -582,7 +652,7 @@ function friendlyAuthError(x){
 }
 let isOffline=!navigator.onLine;
 window.addEventListener("offline",()=>{isOffline=true;msg="You are offline. Your game will be saved on this device. Will sync when online.";render()});
-window.addEventListener("online",()=>{isOffline=false;pushCloud();render()});
+window.addEventListener("online",()=>{isOffline=false;if(profileReady&&auth.currentUser?.uid===player.uid)checkCloudSave();else render()});
 
 /* ---- Boot sequence: observe Firebase Auth without waiting on redirect storage ---- */
 // GitHub Pages and the Firebase auth helper are different origins. Popup sign-in
@@ -590,18 +660,20 @@ window.addEventListener("online",()=>{isOffline=false;pushCloud();render()});
 // Firebase web default. Register the auth listener immediately.
 onAuthStateChanged(auth,u=>{
  if(u){
-  watchIncomingChallenges(u.uid);
+  logoutNotice="";watchIncomingChallenges(u.uid);
   if(lastLoadedAuthUid===u.uid&&!booting)return;
   booting=true;render();loadForUser(u);
  }else{
-  stopIncomingChallenges();lastLoadedAuthUid=null;booting=false;finishSignInWait();
+  stopIncomingChallenges();lastLoadedAuthUid=null;profileReady=false;booting=false;finishSignInWait();
   if(player.uid)clearLocalSession();
   player={...base,settings:{...DEFAULT_SETTINGS}};
-  page="login";render();
+  page="login";if(!logoutBusy)render();
  }
 },x=>{
- booting=false;finishSignInWait();err=friendlyAuthError(x)+" ("+(x.code||"auth-state-error")+")";
- page="login";announce(err,true);render();
+ profileReady=false;booting=false;finishSignInWait();
+ const detail=String(x?.message||"No details returned by Firebase").slice(0,180).replace(/https?:\/\/\S+/g,"[link omitted]");
+ err="Google session could not be restored ("+(x?.code||"auth-state-error")+"). "+detail+". Your saved device data has not been erased. Try Chrome and retry.";
+ console.error("auth state restore",x);page=auth.currentUser?"loadError":"login";announce(err,true);render();
 });
 
 // The day is in India time so all players share the same daily challenge.
@@ -712,17 +784,12 @@ function downloadMatchSummary(){if(!match?.done)return;const r=match.rewardBreak
 /* ==================================================================
    MATCH ENGINE: SHOT_TABLE / DELIVERY_TABLE / weightedPick
    ================================================================== */
-// The button chooses an intended shot, not a guaranteed result. Risk rises
-// for big hits but wickets remain occasional rather than almost every ball.
+// Batting buttons determine base runs exactly. Only wicket risk remains random.
+// Keep the earlier button-specific wicket odds; a wicket scores zero.
 const SHOT_TABLE={
- zero:[{out:0,r:0,w:.75},{out:0,r:1,w:.225},{out:1,r:0,w:.025}],
- defend:[{out:0,r:0,w:.65},{out:0,r:1,w:.31},{out:1,r:0,w:.04}],
- single:[{out:0,r:1,w:.58},{out:0,r:2,w:.18},{out:0,r:0,w:.19},{out:1,r:0,w:.05}],
- double:[{out:0,r:2,w:.47},{out:0,r:1,w:.22},{out:0,r:3,w:.12},{out:0,r:0,w:.12},{out:1,r:0,w:.07}],
- three:[{out:0,r:3,w:.43},{out:0,r:1,w:.23},{out:0,r:2,w:.16},{out:0,r:0,w:.11},{out:1,r:0,w:.07}],
- five:[{out:0,r:5,w:.34},{out:0,r:2,w:.27},{out:0,r:1,w:.18},{out:0,r:0,w:.11},{out:1,r:0,w:.10}],
- four:[{out:0,r:4,w:.40,four:true},{out:0,r:1,w:.25},{out:0,r:0,w:.26},{out:1,r:0,w:.09}],
- six:[{out:0,r:6,w:.34,six:true},{out:0,r:1,w:.30},{out:0,r:0,w:.26},{out:1,r:0,w:.10}],
+ zero:{runs:0,outChance:.025},single:{runs:1,outChance:.05},
+ double:{runs:2,outChance:.07},three:{runs:3,outChance:.07},
+ four:{runs:4,outChance:.09},five:{runs:5,outChance:.10},six:{runs:6,outChance:.10}
 };
 const DELIVERY_TABLE={
  straight:[{wkt:0,r:0,w:.38},{wkt:0,r:1,w:.36},{wkt:0,r:4,w:.18},{wkt:1,r:0,w:.08}],
@@ -735,7 +802,7 @@ function weightedPick(table){
  for(const x of table){acc+=x.w;if(r<=acc)return x}
  return table[table.length-1];
 }
-function playerBats(shotKey){return weightedPick(SHOT_TABLE[shotKey]||SHOT_TABLE.single)}
+function playerBats(shotKey){const shot=SHOT_TABLE[shotKey]||SHOT_TABLE.single;return Math.random()<shot.outChance?{out:1,r:0}:{out:0,r:shot.runs,four:shot.runs===4,six:shot.runs===6}}
 function playerBowls(deliveryKey){return weightedPick(DELIVERY_TABLE[deliveryKey]||DELIVERY_TABLE.straight)}
 function tossCall(call){return Math.random()<.5?"H":"T"}
 
@@ -815,7 +882,7 @@ function doPlayerShot(shotKey){
   const batterName=currentTeamBatter()?.name||"";
   if(matchSetupState.mode==="team")teamWicket();
   let how=dismissalType();match.text="OUT! "+how+". "+(batterName?batterName+" is out. ":"")+"Wicket falls."+(match.onStrikeNote?" "+match.onStrikeNote:"");
-  const outText=match.text;const outStarted=playClip("out",how,()=>announce(outText,true));if(!outStarted)announce(outText,true);
+  const outText=match.text;const outStarted=playClip("out",how,()=>{if(!match?.done)announce(outText,true)});if(!outStarted)announce(outText,true);
   pushLog(how+". Wicket "+inn.wickets+"/"+wicketsLimit());
  }else{
   const batterName=currentTeamBatter()?.name||"";
@@ -831,7 +898,7 @@ function doPlayerShot(shotKey){
   // Commentary names the physical shot (six/four); B1 bonus changes the score, not shot audio.
   // If commentary cannot play, announce only the physical shot; B1 bonus is score-only.
   const physical=res.r===0?"0 run":res.r+" run"+(res.r===1?"":"s");
-  const reportRuns=()=>announce(physical,true);
+  const reportRuns=()=>{if(!match?.done)announce(physical,true)};
   const live=document.getElementById("live-urgent");if(live)live.textContent="";
   const clipStarted=playClip(res.six?"6":res.four?"4":String(res.r),null,reportRuns);
   if(!clipStarted)reportRuns();
@@ -984,8 +1051,8 @@ function awardWinItem(){
  player.inventory[id]={dur:item.dur};return item;
 }
 function finishMatch(reason){
+ match.done=true;stopCommentary();if(window.speechSynthesis)speechSynthesis.cancel();
  fadeBgm(0);
- match.done=true;
  let draw=false,win;
  if(isTest()){
   draw=reason==="time"||(reason!=="innings"&&match.playerTotal===match.aiTotal);
@@ -1222,7 +1289,7 @@ function adminScreen(){
 function nav(){return'<div class="nav" style="margin-bottom:10px"><button class="secondary" data-p="home">Home</button><button class="secondary" data-p="career">Career</button><button class="secondary" data-p="profile">Profile</button><button class="secondary" data-p="shop">Shop</button><button class="secondary" data-p="settings">Settings</button></div>'}
 
 function homeHandCricket(){
- return topBar()
+ return topBar()+showSyncStatus()
  +'<div class="logo-wrap"><div class="logo-emoji" aria-hidden="true">BC</div><div class="logo-text">BLIND CRICKET</div><div class="logo-base"></div></div>'
  +'<div class="sheet"><div class="sheet-handle"></div>'
  +'<button class="contact" data-p="help">Feedback / Query</button>'
@@ -1264,7 +1331,7 @@ function profileScreen(){
   ["Batting Avg",player.batAvg||0],["Bowling Avg",player.bowlAvg||0],["Duck Wickets",player.duckWickets],["Hat-Tricks",player.hatTricks],
   ["Player of Match",player.playerOfMatch],["Quits",player.quits],["Tournaments Won",player.tournamentsWon]];
  let cur=levelData(player.level);
- return topBar()+nav()+'<div class="screen"><h1>👤 Profile</h1><button data-p="editProfile">Edit Profile</button>'
+ return topBar()+nav()+showSyncStatus()+'<div class="screen"><h1>👤 Profile</h1><button data-p="editProfile">Edit Profile</button>'
  +'<p role="status">Offline tournaments won: '+(player.tournamentsWon||0)+'. Tournament matches won overall: '+(player.tournamentMatchesWon||0)+'. Matches won within the current tournament: '+(player.offlineTournament?.wins||0)+'.</p>'
  +'<h2>Wins by format</h2><ul>'+Object.entries(player.formatWins||{}).sort(([a],[b])=>a.localeCompare(b)).map(([format,count])=>'<li>'+e(format)+': '+count+' wins</li>').join('')+'</ul>'
  +'<p>Your User ID: <span id="profileUid">'+e(auth.currentUser?.uid||"Not signed in")+'</span> <button type="button" class="secondary" id="readUid">Read my User ID aloud</button></p>' 
@@ -1478,14 +1545,14 @@ function matchScreen(){
  if(isTest()&&match.awaitingFollowOn){
   controls='<h2>Follow-on decision</h2><p>You lead by at least 200 runs. Choose whether the opponent bats again now.</p><button id="enforceFollowOn">Enforce follow-on</button> <button id="declineFollowOn" class="secondary">Bat again</button>';
  }else if(side==="player"){
-  controls='<h2>Choose Your Shot</h2><p>Choose 0 to 6 as your intended shot. Actual runs or wicket are random.</p><div class="shots">'
-   +'<button data-shot="zero" aria-label="Aim for 0 runs, defend">0 Runs</button>'
+  controls='<h2>Choose Your Shot</h2><p>Choose 0 to 6 runs. Your chosen runs are scored unless you are out. B1 on strike scores double.</p><div class="shots">'
+   +'<button data-shot="zero" aria-label="0 runs, unless out">0 Runs</button>'
    +'<button data-shot="single">1 Run</button>'
    +'<button data-shot="double">2 Runs</button>'
    +'<button data-shot="three">3 Runs</button>'
-   +'<button data-shot="four" aria-label="Aim for 4 runs, actual result is random">Aim for 4 Runs</button>'
+   +'<button data-shot="four" aria-label="4 runs, unless out">4 Runs</button>'
    +'<button data-shot="five">5 Runs</button>'
-   +'<button data-shot="six" aria-label="Aim for 6 runs, actual result is random">Aim for 6 Runs</button>'
+   +'<button data-shot="six" aria-label="6 runs, unless out">6 Runs</button>'
    +'</div>';
  }else{
   controls='<h2>Choose Your Delivery</h2><div class="shots">'
@@ -1495,15 +1562,16 @@ function matchScreen(){
    +'<button data-ball="spin">Spin</button>'
    +'</div>';
  }
- return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1><button id="matchBgmToggle" type="button" aria-pressed="'+(player.settings.bgm?'true':'false')+'">Background music '+(player.settings.bgm?'on':'off')+'</button>'+header+teamStatus+commentary+controls+
+ return topBar()+'<div class="screen"><h1 id="matchHeading" tabindex="-1">🏏 '+(side==="player"?"You Are Batting":"You Are Bowling")+'</h1><button id="matchBgmToggle" type="button" aria-pressed="'+(player.settings.bgm?'true':'false')+'">Background music '+(player.settings.bgm?'on':'off')+'</button><label>Background music volume (0 to 100 percent)<input id="matchBgmVolume" type="range" min="0" max="1" step=".05" value="'+(player.settings.bgmVolume??.25)+'"></label>'+header+teamStatus+commentary+controls+
  (testCanDeclare()?'<button id="declareTest" class="secondary" aria-label="Declare this Test innings after at least one over">Declare innings</button>':'')+'<div class="log" style="margin-top:14px">'+match.log.map(l=>'<div class="tag" style="display:block;margin:4px 0">'+e(l)+'</div>').join("")+'</div><button class="secondary" id="quitMatchBtn" style="margin-top:14px">Quit Match</button></div>';
 }
 function quitMatch(){
  if(!match||match.done)return;
+ match.done=true;stopCommentary();if(window.speechSynthesis)speechSynthesis.cancel();
  fadeBgm(0);
  player.quits++;
  if(match.friendChallengeId){match.friendSubmissionScore=0;recordFriendScore(match.friendChallengeId,0)}
- match.done=true;match.win=false;
+ match.win=false;
  let pRuns=match.playerBatRuns,pWkts=match.playerBowlWickets;
  match.result="QUIT";player.matches++;player.losses++;
  player.runs+=pRuns;player.wickets+=pWkts;
@@ -1604,7 +1672,7 @@ function resumeScreen(){
 
 /* ---------------- Auth screens ---------------- */
 function authScreen(){
- root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center"><h1>🏏 Blind Cricket Pro Ultimate</h1><p class="muted">Sign in to save your profile, wallet, career progress and shop items.</p><button id="google" type="button" aria-label="Sign in with Google, opens a new window" style="width:100%;min-height:52px;font-size:17px">Continue with Google</button>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';
+ root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center"><h1>🏏 Blind Cricket Pro Ultimate</h1><p class="muted">Sign in to save your profile, wallet, career progress and shop items.</p><button id="google" type="button" aria-label="Sign in with Google, opens a new window" style="width:100%;min-height:52px;font-size:17px">Continue with Google</button>'+(logoutNotice?'<div class="notice" role="status">'+e(logoutNotice)+'</div>':'')+(err?'<div class="notice err" role="alert">'+e(err)+'</div><button id="retryAuth" type="button">Retry loading sign-in</button>':'')+'</main>';
  bind();
 }
 function loadingScreen(){
@@ -1623,7 +1691,7 @@ function onboardingScreen(){
  +'<label>Family Background<select id="ob_fam"><option>Middle</option><option>Lower</option><option>Upper</option></select></label>'
  +'<label>Blind Category<select id="ob_cat"><option value="B1">B1</option><option value="B2" selected>B2</option><option value="B3">B3</option></select></label>'
  +'<label>Role<select id="ob_role"><option>Batsman</option><option>Bowler</option><option>Allrounder</option><option>Wicketkeeper</option></select></label>'
- +'<button>Save and Continue</button></form>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div>':'')+'</main>';
+ +'<button>Save and Continue</button></form>'+(err?'<div class="notice err" role="alert">'+e(err)+'</div><button id="retryAuth" type="button">Retry loading sign-in</button>':'')+'</main>';
  bind();
 }
 
@@ -1634,7 +1702,7 @@ function render(){
  if(page==="onboarding"){onboardingScreen();return}
  if(page==="loadError"){
   root.innerHTML='<main id="main" class="screen" role="alert"><h1>Profile could not load</h1><p>'+e(err)+'</p><button id="retryLoad" type="button">Retry loading profile</button></main>';
-  document.getElementById("retryLoad").onclick=()=>{booting=true;render();loadForUser(auth.currentUser)};
+  document.getElementById("retryLoad").onclick=()=>{if(!auth.currentUser){window.location.reload();return}booting=true;render();loadForUser(auth.currentUser)};
   return;
  }
  let body;
@@ -1642,6 +1710,7 @@ function render(){
  else if(page==="help")body=helpScreen();
  else if(page==="career")body=careerScreen();
  else if(page==="profile"||page==="mycollection")body=profileScreen();
+ else if(page==="recovery")body=recoveryScreen();
  else if(page==="admin")body=adminScreen();
  else if(page==="editProfile")body=editProfileScreen();
  else if(page==="shop")body=shopScreen();
@@ -1666,7 +1735,7 @@ function render(){
 
 /* ---------------- Event binding ---------------- */
 async function google(){
- err="";
+ err="";logoutNotice="";
  try{await signInWithPopup(auth,new GoogleAuthProvider())}
  catch(x){
   err=x.code==="auth/popup-blocked"||x.code==="auth/operation-not-supported-in-this-environment"
@@ -1704,6 +1773,9 @@ async function buy(id){
  }catch(x){tradeError=x.message||x.code||"Buy failed.";announce(tradeError,true);render()}finally{economyBusy=false}
 }
 function bind(){
+ let checkSave=document.getElementById("checkCloudSave");if(checkSave)checkSave.onclick=checkCloudSave;
+ let review=document.getElementById("reviewRecovery");if(review)review.onclick=reviewRecovery;
+ let compare=document.getElementById("compareRecovery");if(compare)compare.onclick=compareRecovery;
  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
   let mode=b.dataset.mode;
   if(mode)matchSetupState.mode=mode;
@@ -1747,6 +1819,7 @@ function bind(){
  let adminDownload=document.getElementById("adminDownload");if(adminDownload)adminDownload.onclick=downloadAdminData;
  document.querySelectorAll("[data-admin-profile]").forEach(b=>b.onclick=()=>{adminSelectedUid=b.dataset.adminProfile;render()});
  let g=document.getElementById("google");if(g)g.onclick=google;
+ let retryAuth=document.getElementById("retryAuth");if(retryAuth)retryAuth.onclick=()=>window.location.reload();
  let obf=document.getElementById("obf");if(obf)obf.onsubmit=saveOnboarding;
  let ep=document.getElementById("editProfileForm");if(ep)ep.onsubmit=async(ev)=>{
   ev.preventDefault();
@@ -1774,13 +1847,18 @@ function bind(){
  const refresh=document.getElementById("refreshTrades");if(refresh)refresh.onclick=refreshTrades;
  document.querySelectorAll("[data-accept]").forEach(b=>b.onclick=()=>{if(confirm("Accept this item request and pay the shown ₹ amount, if any?"))decideTrade(b.dataset.accept,true)});
  document.querySelectorAll("[data-decline]").forEach(b=>b.onclick=()=>{if(confirm("Decline this item request?"))decideTrade(b.dataset.decline,false)});
+ let bgmVolumeControl=document.getElementById("bgmvol");
+ if(bgmVolumeControl){
+  bgmVolumeControl.oninput=()=>{player.settings.bgmVolume=Number(bgmVolumeControl.value);syncBgm()};
+  bgmVolumeControl.onchange=()=>{saveLocal();pushCloud()};
+ }
  let saveSet=document.getElementById("saveSet");
  if(saveSet)saveSet.onclick=async()=>{
   player.settings.tts=document.getElementById("tts").checked;
   player.settings.commentary=document.getElementById("com").checked;
   player.settings.sfx=document.getElementById("sfx").checked;
   player.settings.bgm=document.getElementById("bgm").checked;
-  player.settings.bgmVolume=+document.getElementById("bgmvol").value;
+  player.settings.bgmVolume=Number(document.getElementById("bgmvol").value);
   player.settings.commentaryVolume=+document.getElementById("cvol").value;
   player.settings.sfxVolume=+document.getElementById("svol").value;
   player.settings.commentator=document.getElementById("commLang").value;
@@ -1819,6 +1897,11 @@ function bind(){
  let decline=document.getElementById("declineFollowOn");if(decline)decline.onclick=()=>{if(followOnAllowed()&&confirm("Are you sure you want to bat again instead of enforcing the follow-on?"))chooseFollowOn(false)};
  document.querySelectorAll("[data-shot]").forEach(b=>b.onclick=()=>doPlayerShot(b.dataset.shot));
  document.querySelectorAll("[data-ball]").forEach(b=>b.onclick=()=>doPlayerBowl(b.dataset.ball));
+ let matchBgmVolume=document.getElementById("matchBgmVolume");
+ if(matchBgmVolume){
+  matchBgmVolume.oninput=()=>{player.settings.bgmVolume=Number(matchBgmVolume.value);syncBgm()};
+  matchBgmVolume.onchange=()=>{saveLocal();pushCloud()};
+ }
  let matchBgmToggle=document.getElementById("matchBgmToggle");if(matchBgmToggle)matchBgmToggle.onclick=()=>{
   player.settings.bgm=!player.settings.bgm;syncBgm();
   announce("Background music "+(player.settings.bgm?"on":"off")+".",true);
@@ -1862,13 +1945,22 @@ function bind(){
  });
 }
 async function doLogout(){
- stopIncomingChallenges();fadeBgm(0);
- await signOut(auth);
- clearLocalSession();
- stopCommentary();stopResultSound();
- player={...base,settings:{...DEFAULT_SETTINGS}};
- page="login";match=null;
- render();
+ if(logoutBusy)return;
+ logoutBusy=true;logoutNotice="";menuOpen=false;
+ announce("Logging out. Please wait.",true);
+ msg="Logging out. Please wait.";render();
+ logoutTimer=setTimeout(()=>{if(logoutBusy){msg="Logout is taking longer than expected. Check your connection and try again.";announce(msg,true);render()}},10000);
+ try{
+  await signOut(auth);
+  if(auth.currentUser)throw Error("Session is still active. Please try again.");
+  stopIncomingChallenges();fadeBgm(0);stopCommentary();stopResultSound();
+  clearLocalSession();player={...base,settings:{...DEFAULT_SETTINGS}};
+  page="login";match=null;profileReady=false;booting=false;msg="";err="";
+  logoutNotice="You have logged out.";announce(logoutNotice,true);render();
+ }catch(x){
+  msg="Logout failed ("+(x.code||x.message||"network-error")+"). You are still signed in. Try again.";
+  announce(msg,true);render();
+ }finally{clearTimeout(logoutTimer);logoutTimer=null;logoutBusy=false}
 }
 
 /* Keyboard accessibility shortcuts: B = bat/primary action, Ctrl+B = bowl, A = summary */
