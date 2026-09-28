@@ -120,7 +120,7 @@ textarea{display:block;width:100%;min-height:150px;padding:12px;border-radius:12
 <div id="live-urgent" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import{getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence,signInWithPopup,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import{getAuth,onAuthStateChanged,signInWithPopup,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc,collection,query,limit,startAfter,getDocs,where,runTransaction,deleteDoc,orderBy,onSnapshot}from"https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 /* ==================================================================
@@ -272,7 +272,10 @@ let profileWriteQueue=Promise.resolve(),lastEconomySync={uid:null,balance:0,inve
 let economyBusy=false;
 
 let matchSetupState={overs:5,format:"T20",innings:2,wicketsLimit:5,mode:"cpu",toss:null};
-let booting=true;
+let booting=true,signInWaitExpired=false;
+// If persistence, redirect recovery, auth state, or profile load hangs, show a way out.
+const signInWaitTimer=setTimeout(()=>{if(booting){signInWaitExpired=true;loadingScreen();announce("Sign-in is taking too long. Open this link in Chrome or retry.",true)}},20000);
+function finishSignInWait(){clearTimeout(signInWaitTimer);signInWaitExpired=false}
 let matchSaveQueue=Promise.resolve();
 
 function loadLocal(){
@@ -558,12 +561,12 @@ async function loadForUser(u){
  }catch(x){
   err="Could not load your profile ("+(x.code||"unknown-error")+"). Check Firebase access or your connection.";
   console.error("profile load failed",x);
-  booting=false;page="loadError";announce(err,true);render();return;
+  booting=false;finishSignInWait();page="loadError";announce(err,true);render();return;
  }
  match=null;pendingFriendId=null;
  adminRecords=[];adminLastDoc=null;adminAllLoaded=false;adminSelectedUid=null;adminError="";
  feedbackRows=[];feedbackLastDoc=null;feedbackAllLoaded=false;feedbackAdminError="";feedbackError="";
- booting=false;
+ booting=false;finishSignInWait();
  claimDailyLogin(u.uid);
  if(lastLoadedAuthUid!==u.uid){lastLoadedAuthUid=u.uid;announce("Google sign-in successful. Welcome back, "+(player.name||"Player")+".",false);setTimeout(()=>{let live=document.getElementById("live-gentle");if(live?.textContent.startsWith("Google sign-in successful."))live.textContent=""},3500)}
  render();
@@ -581,30 +584,25 @@ let isOffline=!navigator.onLine;
 window.addEventListener("offline",()=>{isOffline=true;msg="You are offline. Your game will be saved on this device. Will sync when online.";render()});
 window.addEventListener("online",()=>{isOffline=false;pushCloud();render()});
 
-/* ---- Boot sequence: redirect result -> persistence -> auth state ---- */
-setPersistence(auth,browserLocalPersistence)
- .catch(x=>console.log(x))
- .then(()=>getRedirectResult(auth))
- .then(r=>{ if(r&&r.user){ announce("Signing in with Google. Please wait.",true) } })
- .catch(x=>{ err=friendlyAuthError(x); })
- .then(()=>{
-  onAuthStateChanged(auth,u=>{
-   if(u){
-    watchIncomingChallenges(u.uid);
-    if(lastLoadedAuthUid===u.uid&&!booting)return;
-    booting=true;
-    render();
-    loadForUser(u);
-   }else{
-    stopIncomingChallenges();
-    lastLoadedAuthUid=null;booting=false;
-    if(player.uid)clearLocalSession();
-    player={...base,settings:{...DEFAULT_SETTINGS}};
-    page="login";
-    render();
-   }
-  });
- });
+/* ---- Boot sequence: observe Firebase Auth without waiting on redirect storage ---- */
+// GitHub Pages and the Firebase auth helper are different origins. Popup sign-in
+// avoids redirect's third-party storage dependency; local persistence is the
+// Firebase web default. Register the auth listener immediately.
+onAuthStateChanged(auth,u=>{
+ if(u){
+  watchIncomingChallenges(u.uid);
+  if(lastLoadedAuthUid===u.uid&&!booting)return;
+  booting=true;render();loadForUser(u);
+ }else{
+  stopIncomingChallenges();lastLoadedAuthUid=null;booting=false;finishSignInWait();
+  if(player.uid)clearLocalSession();
+  player={...base,settings:{...DEFAULT_SETTINGS}};
+  page="login";render();
+ }
+},x=>{
+ booting=false;finishSignInWait();err=friendlyAuthError(x)+" ("+(x.code||"auth-state-error")+")";
+ page="login";announce(err,true);render();
+});
 
 // The day is in India time so all players share the same daily challenge.
 function gameDay(d=new Date()){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
@@ -1610,7 +1608,9 @@ function authScreen(){
  bind();
 }
 function loadingScreen(){
- root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center" aria-busy="true"><h1>🏏 Blind Cricket Pro Ultimate</h1><p>Signing in with Google...</p><p class="muted">Please wait...</p></main>';
+ root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:60px auto;text-align:center"><h1>🏏 Blind Cricket Pro Ultimate</h1><p>Signing in with Google...</p>'
+ +(signInWaitExpired?'<div role="alert"><p>Sign-in is taking longer than expected. If you opened this link inside WhatsApp or another app, open it in Chrome instead.</p><button id="retrySignIn" type="button">Retry sign-in</button></div>':'<p class="muted" role="status">Please wait...</p>')+'</main>';
+ let retry=document.getElementById("retrySignIn");if(retry)retry.onclick=()=>window.location.reload();
 }
 function onboardingScreen(){
  root.innerHTML='<main id="main" class="screen" style="max-width:560px;margin:30px auto"><h1>Welcome, '+e(player.name)+'!</h1><p class="muted">A few quick details to set up your profile.</p><form id="obf" class="form">'
@@ -1669,12 +1669,9 @@ async function google(){
  err="";
  try{await signInWithPopup(auth,new GoogleAuthProvider())}
  catch(x){
-  if(x.code==="auth/popup-blocked"){
-   announce("The popup was blocked. Continuing with redirect sign-in.",true);
-   try{await signInWithRedirect(auth,new GoogleAuthProvider());return}
-   catch(y){x=y}
-  }
-  err=friendlyAuthError(x)+" ("+(x.code||"unknown-error")+")";
+  err=x.code==="auth/popup-blocked"||x.code==="auth/operation-not-supported-in-this-environment"
+   ?"Google sign-in cannot open here. Open the game link directly in Chrome, then try again."
+   :friendlyAuthError(x)+" ("+(x.code||"unknown-error")+")";
   announce(err,true);render();
  }
 }
