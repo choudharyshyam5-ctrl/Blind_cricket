@@ -201,13 +201,14 @@ const base={
  totalBallsFaced:0,totalBallsBowled:0,totalRunsConceded:0,dismissals:0,
  village:"",state:"",age:null,academy:"",familyBackground:"",blindCategory:"B2",role:"Batsman",
  inventory:{},history:[],achievements:[],
- teamId:"",teamName:"",coach:null,
+ teamId:"",teamName:"",coach:null,matchCheckpoint:null,squad:[],offlineTournament:null,auction:{budget:5000000,players:[]},
  settings:{...DEFAULT_SETTINGS}
 };
 
 let player=loadLocal(),page="boot",msg="",err="",match=null,menuOpen=false;
 let matchSetupState={overs:5,format:"T20",innings:2,wicketsLimit:5,mode:"cpu",toss:null};
 let booting=true;
+let matchSaveQueue=Promise.resolve();
 
 function loadLocal(){
  try{
@@ -218,6 +219,23 @@ function loadLocal(){
 }
 function saveLocal(){localStorage.setItem("BCPU_PLAYER_V2",JSON.stringify(player));if(player.uid)localStorage.setItem("blindCricketCurrentUser",player.uid)}
 function clearLocalSession(){localStorage.removeItem("BCPU_PLAYER_V2");localStorage.removeItem("blindCricketCurrentUser");localStorage.removeItem("BCPU");localStorage.removeItem("BCPU_GUEST")}
+// A checkpoint belongs to one signed-in UID. Each ball is written locally first,
+// then queued to Firestore so a slower previous save cannot overwrite a later ball.
+function saveMatchCheckpoint(clear=false){
+ if(!auth.currentUser)return;
+ player.matchCheckpoint={savedAt:Date.now(),state:clear?null:{match:JSON.parse(JSON.stringify(match)),setup:{...matchSetupState}}};
+ saveLocal();
+ const checkpoint=player.matchCheckpoint,uid=auth.currentUser.uid;
+ matchSaveQueue=matchSaveQueue.catch(()=>{}).then(()=>setDoc(doc(db,"players",uid),{matchCheckpoint:checkpoint},{merge:true}))
+  .catch(x=>{err="Match saved on this device, but Firebase checkpoint failed ("+(x.code||"unknown-error")+").";console.error("match checkpoint",x);announce(err,true);msg=err;render()});
+}
+function resumableMatch(){return player.matchCheckpoint&&player.matchCheckpoint.state&&player.matchCheckpoint.state.match&&!player.matchCheckpoint.state.match.done}
+function resumeMatch(){
+ if(!resumableMatch()){msg="No saved match to resume.";page="home";render();return}
+ const state=player.matchCheckpoint.state;
+ match=JSON.parse(JSON.stringify(state.match));matchSetupState={...matchSetupState,...state.setup};activeCommentaryPack=pickPackForSetting(player.settings.commentator);
+ page="match";announce("Match resumed. "+(match.current==="player"?"You are batting.":"You are bowling."),true);render();
+}
 function e(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function need(){return player.level*350}
 function money(n){return "₹"+Math.round(n).toLocaleString("en-IN")}
@@ -264,8 +282,9 @@ function pickPackForSetting(commentator){
  }
  return MANIFEST[commentator]?commentator:"extra_default";
 }
+const clipCursor={};
 function pickClip(eventKey,packId){
- let pid=packId||pickPackForSetting(player.settings.commentator);
+ let pid=packId||activeCommentaryPack||pickPackForSetting(player.settings.commentator);
  let pack=MANIFEST[pid]||MANIFEST.extra_default;
  let key=normEvent(eventKey);
  let files=pack.events[key];
@@ -275,14 +294,18 @@ function pickClip(eventKey,packId){
   pid="extra_default";
  }
  if(!files.length)return null;
- let f=files[Math.floor(Math.random()*files.length)];
+ let cursorKey=pid+":"+key;
+ let index=clipCursor[cursorKey]||0;
+ let f=files[index%files.length];
+ clipCursor[cursorKey]=(index+1)%files.length;
  return{pid,path:f};
 }
+let activeCommentaryPack=null;
 let commentaryAudio=new Audio();
 commentaryAudio.preload="none";
-function playClip(eventKey){
+function playClip(eventKey,dismissalType){
  if(!player.settings.commentary)return;
- let clip=pickClip(eventKey);
+ let clip=dismissalType?pickDismissalClip(dismissalType):pickClip(eventKey);
  if(!clip)return;
  let primary=SOUND_BASE_PRIMARY+clip.path.split("/").map(encodeURIComponent).join("/");
  let fallback=SOUND_BASE_FALLBACK+clip.path.split("/").map(encodeURIComponent).join("/");
@@ -293,6 +316,17 @@ function playClip(eventKey){
  commentaryAudio.onerror=()=>{commentaryAudio.onerror=null;commentaryAudio.src=fallback;commentaryAudio.play().catch(()=>{})};
  commentaryAudio.play().catch(()=>{});
 }
+function pickDismissalClip(type){
+ const pid=activeCommentaryPack||pickPackForSetting(player.settings.commentator),pack=MANIFEST[pid]||MANIFEST.extra_default;
+ const patterns={"Caught":/catch|caught|quat behind/i,"Bowled":/bowl|bold/i,"Run out":/run out/i,"LBW":/lbw/i,"Stumped":/stump/i};
+ const filter=patterns[type];
+ for(const [id,p] of [[pid,pack],["extra_default",MANIFEST.extra_default]]){
+  const files=(p.events.out||[]).filter(path=>filter.test(path));
+  if(files.length){let key=id+":out:"+type,i=clipCursor[key]||0;clipCursor[key]=(i+1)%files.length;return{pid:id,path:files[i%files.length]}}
+ }
+ return null; // Spoken/TalkBack dismissal text remains exact if no matching recorded clip exists.
+}
+function dismissalType(){return ["Caught","Bowled","Run out","LBW","Stumped"][Math.floor(Math.random()*5)]}
 function stopCommentary(){commentaryAudio.pause();commentaryAudio.currentTime=0}
 let resultAudio=new Audio();
 function playResultSound(win){
@@ -325,14 +359,18 @@ async function loadForUser(u){
   if(snap.exists()){
    let cloud=snap.data();
    let local=loadLocal();
+   let checkpoint=local.uid===u.uid&&local.matchCheckpoint&&(!cloud.matchCheckpoint||local.matchCheckpoint.savedAt>cloud.matchCheckpoint.savedAt)?local.matchCheckpoint:cloud.matchCheckpoint||null;
    let useCloud=!local.updatedAt||!cloud.updatedAt||cloud.updatedAt>=local.updatedAt;
    let src=useCloud?cloud:local;
-   player={...base,...src,uid:u.uid,email:u.email||src.email||"",photoURL:u.photoURL||src.photoURL||"",name:src.name||u.displayName||"Player",settings:{...DEFAULT_SETTINGS,...(src.settings||{})},inventory:src.inventory||{},history:src.history||[],achievements:src.achievements||[]};
+   player={...base,...src,matchCheckpoint:checkpoint,uid:u.uid,email:u.email||src.email||"",photoURL:u.photoURL||src.photoURL||"",name:src.name||u.displayName||"Player",settings:{...DEFAULT_SETTINGS,...(src.settings||{})},inventory:src.inventory||{},history:src.history||[],achievements:src.achievements||[]};
    saveLocal();
+   squadDraft=Array.isArray(player.squad)?player.squad:[];
    page="home";
   }else{
-   player={...base,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player"};
+   let local=loadLocal();
+   player={...base,matchCheckpoint:local.uid===u.uid?local.matchCheckpoint:null,uid:u.uid,email:u.email||"",photoURL:u.photoURL||"",name:u.displayName||"Player"};
    saveLocal();
+   squadDraft=Array.isArray(player.squad)?player.squad:[];
    page="onboarding";
   }
  }catch(x){
@@ -340,6 +378,7 @@ async function loadForUser(u){
   console.error("profile load failed",x);
   booting=false;page="loadError";announce(err,true);render();return;
  }
+ match=null;
  booting=false;
  announce("Google sign-in successful. Welcome back, "+(player.name||"Player")+".",false);
  render();
@@ -383,9 +422,12 @@ setPersistence(auth,browserLocalPersistence)
    MATCH ENGINE: SHOT_TABLE / DELIVERY_TABLE / weightedPick
    ================================================================== */
 const SHOT_TABLE={
+ zero:[{out:0,r:0,w:.72},{out:0,r:1,w:.18},{out:1,r:0,w:.10}],
  defend:[{out:0,r:0,w:.55},{out:0,r:1,w:.30},{out:1,r:0,w:.15}],
  single:[{out:0,r:1,w:.55},{out:0,r:2,w:.15},{out:0,r:0,w:.15},{out:1,r:0,w:.15}],
  double:[{out:0,r:2,w:.42},{out:0,r:1,w:.20},{out:0,r:3,w:.10},{out:0,r:0,w:.08},{out:1,r:0,w:.20}],
+ three:[{out:0,r:3,w:.42},{out:0,r:1,w:.20},{out:0,r:2,w:.15},{out:0,r:0,w:.08},{out:1,r:0,w:.15}],
+ five:[{out:0,r:5,w:.30},{out:0,r:2,w:.22},{out:0,r:1,w:.15},{out:0,r:0,w:.08},{out:1,r:0,w:.25}],
  four:[{out:0,r:4,w:.38,four:true},{out:0,r:1,w:.18},{out:0,r:0,w:.12},{out:1,r:0,w:.32}],
  six:[{out:0,r:6,w:.30,six:true},{out:0,r:1,w:.14},{out:0,r:0,w:.14},{out:1,r:0,w:.42}],
 };
@@ -409,7 +451,10 @@ function ballsLimit(){return matchSetupState.overs*6}
 function wicketsLimit(){return matchSetupState.mode==="team"?10:matchSetupState.wicketsLimit}
 
 function startMatch(){
+ if(resumableMatch()&&!confirm("Starting a new match will replace your saved match. Continue?"))return;
  let m=matchSetupState;
+ if(m.mode==="tournament"&&!activeTournament()){msg="Start a tournament first.";page="tournaments";render();return}
+ if(m.mode==="team"&&(squadDraft.length!==11||squadDraft.filter(p=>p.cat==="B1").length<4)){msg="Team match needs exactly 11 players including at least 4 B1 players.";page="mySquad";announce(msg,true);render();return}
  let t=tossCall();
  let userWinsToss = m.toss==="F" ? Math.random()<.5 : (m.toss===t);
  let battingFirst;
@@ -426,8 +471,10 @@ function startMatch(){
   playerBowlWickets:0,playerRunsConceded:0,playerBallsBowled:0,
   bowlWicketStreak:0,allOut:false,
  };
+ activeCommentaryPack=pickPackForSetting(player.settings.commentator);
  playClip("toss");
  page="match";
+ saveMatchCheckpoint();
  render();
  speak(match.text);
 }
@@ -452,9 +499,9 @@ function doPlayerShot(shotKey){
  match.playerBallsFaced++;
  if(res.out){
   inn.wickets++;
-  match.text="OUT! Wicket falls.";
-  playClip("out");speak(match.text);
-  pushLog("Wicket! "+inn.wickets+"/"+wicketsLimit());
+  let how=dismissalType();match.text="OUT! "+how+". Wicket falls.";
+  playClip("out",how);speak(match.text);announce(match.text,true);
+  pushLog(how+". Wicket "+inn.wickets+"/"+wicketsLimit());
  }else{
   let runs=applyB1(res.r);
   inn.runs+=runs;
@@ -480,7 +527,7 @@ function doPlayerBowl(deliveryKey){
   match.bowlWicketStreak=0;
  }else if(res.wkt){
   inn.wickets++;match.playerBowlWickets++;match.bowlWicketStreak++;
-  match.text="OUT! You've taken a wicket.";playClip("out");pushLog("Wicket! AI "+inn.wickets+"/"+wicketsLimit());
+  let how=dismissalType();match.text="OUT! "+how+". You've taken a wicket.";playClip("out",how);announce(match.text,true);pushLog(how+". AI wicket "+inn.wickets+"/"+wicketsLimit());
   if(match.bowlWicketStreak>=3){player.hatTricks++;match.bowlWicketStreak=0;match.text+=" HAT-TRICK!";announce("Hat-trick!",true)}
  }else{
   inn.runs+=res.r;match.playerRunsConceded+=res.r;
@@ -497,7 +544,7 @@ function afterBall(){
  let inn=currentInnings();
  let chasing=match.innings>1&&match.target!=null;
  let over=inn.balls>=ballsLimit()||inn.wickets>=wicketsLimit()||(chasing&&inn.runs>=match.target);
- if(over){endInnings()}else{render()}
+ if(over){endInnings()}else{saveMatchCheckpoint();render()}
 }
 function endInnings(){
  let side=match.current;
@@ -513,7 +560,7 @@ function endInnings(){
   announce("Innings break. Target to win: "+match.target+" runs.",true);
   match.text="Innings break. "+(match.current==="player"?"You need "+match.target+" runs to win.":"Opponent needs "+match.target+" runs to win.");
   speak(match.text);
-  render();
+  saveMatchCheckpoint();render();
   return;
  }
  if(match.maxInnings===4&&match.innings<4){
@@ -524,7 +571,7 @@ function endInnings(){
   announce("End of innings "+  (match.innings-1)+". Innings "+match.innings+" begins.",true);
   match.text="Innings "+match.innings+" begins.";
   speak(match.text);
-  render();
+  saveMatchCheckpoint();render();
   return;
  }
  finishMatch();
@@ -589,9 +636,11 @@ function finishMatch(){
   let cur=levelData(player.level);
   if(cur.salary){salaryPaid=cur.salary;player.balance+=salaryPaid}
  }
+ advanceOfflineTournament(win);
  player.history.push({date:Date.now(),result:win?"WIN":"LOSS",runs:pRuns,wickets:pWkts,reward,mode:matchSetupState.mode});
  if(player.history.length>200)player.history=player.history.slice(-200);
- pushCloud();
+ saveMatchCheckpoint(true);
+ matchSaveQueue.then(()=>pushCloud());
 
  match.rewardBreakdown={reward,xpGain,newBalance:player.balance,newAchievements,leveledUp,salaryPaid,pRuns,pWkts,potm};
  playResultSound(win);
@@ -600,9 +649,8 @@ function finishMatch(){
  render();
 }
 function closeResultPopup(){
- stopResultSound();
- match=null;
- page="home";
+ stopResultSound();match=null;
+ page=matchSetupState.mode==="tournament"?"tournaments":"home";
  render();
 }
 
@@ -613,8 +661,30 @@ function stateCode(s){return(s||"XXX").replace(/[^A-Za-z]/g,"").slice(0,3).toUpp
 function genTeamId(state){return "TEAM-"+stateCode(state)+"-"+(1000+Math.floor(Math.random()*9000))}
 function loadTeams(){try{return JSON.parse(localStorage.getItem("blindCricketTeams_v2")||"{}")}catch{return{}}}
 function saveTeamLocal(team){let t=loadTeams();t[team.teamId]=team;localStorage.setItem("blindCricketTeams_v2",JSON.stringify(t))}
-async function pushTeamCloud(team){try{await setDoc(doc(db,"teams",team.teamId),team,{merge:true})}catch(x){console.log(x)}}
+async function pushTeamCloud(team){try{await setDoc(doc(db,"teams",team.teamId),team,{merge:true});return true}catch(x){err="Team cloud save failed ("+(x.code||"unknown-error")+"). Saved on this device only.";announce(err,true);return false}}
 let squadDraft=[];
+const OFFLINE_TOURNAMENT_ROUNDS=3;
+function activeTournament(){return player.offlineTournament&&player.offlineTournament.status==="active"}
+function tournamentInfo(){let t=player.offlineTournament;return t?TOURNAMENTS.find(x=>x.id===t.id):null}
+function beginOfflineTournament(id){
+ let info=TOURNAMENTS.find(x=>x.id===id);if(!info||!tournamentUnlocked(info,player))return;
+ if(activeTournament()){msg="Finish or quit your current offline tournament before starting another.";announce(msg,true);render();return;}
+ if(resumableMatch()){msg="A match is already saved. Finish or quit it before starting a tournament.";announce(msg,true);render();return}
+ player.offlineTournament={id,status:"active",round:1,wins:0,losses:0,requiredWins:OFFLINE_TOURNAMENT_ROUNDS};
+ matchSetupState={...matchSetupState,mode:"tournament",innings:"2",toss:null};
+ saveLocal();pushCloud();page="tournaments";
+ msg=info.name+" started. Win three computer matches to claim its in-game prize. Set the match options, call the toss, and play round one.";
+ announce(msg,true);render();
+}
+function advanceOfflineTournament(win){
+ let t=player.offlineTournament;
+ if(!t||t.status!=="active"||matchSetupState.mode!=="tournament")return;
+ if(win){t.wins++;if(t.wins>=t.requiredWins){t.status="won";let prize=tournamentInfo()?.prize||0;player.balance+=prize;player.tournamentsWon++;match.text+=" Tournament won. Prize "+money(prize)+".";announce("Tournament won. In-game prize "+money(prize),true)}else t.round++}
+ else{t.losses++;t.status="lost";announce("Tournament ended. You may enter again.",true)}
+}
+function auctionPrice(){return 100000}
+function auctionState(){if(!player.auction||!Array.isArray(player.auction.players))player.auction={budget:5000000,players:[]};return player.auction}
+
 
 /* ==================================================================
    ROUTER + RENDER
@@ -662,13 +732,12 @@ function homeHandCricket(){
  +'<div class="sheet"><div class="sheet-handle"></div>'
  +'<button class="contact" data-p="help">ANY ISSUES??? CONTACT US</button>'
  +'<button class="bigbtn" data-p="matchSetup" data-mode="cpu"><b>PLAY VERSUS COMPUTER</b><span>Play versus offline robot</span></button>'
- +'<button class="bigbtn" data-p="matchSetup" data-mode="online"><b>PLAY ONLINE MULTIPLAYER</b><span>Play versus real players</span></button>'
- +'<button class="bigbtn" data-p="matchSetup" data-mode="team"><b>PLAY TEAM VERSUS TEAM</b><span>Play with your team</span></button>'
+ +'<button class="bigbtn" data-p="teamVsTeam"><b>TEAM VERSUS COMPUTER</b><span>Set up your 11-player squad, then play a computer team</span></button>'
  +'<div class="badge">B1 rule: Minimum 4 B1 players required for 11 players.</div>'
- +'<div class="row" style="margin-top:14px"><button class="secondary" data-p="resume">Resume Match</button><button class="secondary" data-p="resumeTournament">Resume Tournament</button></div>'
+ +'<div class="row" style="margin-top:14px">'+(resumableMatch()?'<button class="secondary" id="resumeHome">Resume Saved Match</button>':'<span class="muted">No saved match to resume.</span>')+'<button class="secondary" data-p="resumeTournament">'+(activeTournament()?'Continue Offline Tournament':'Offline Tournaments')+'</button></div>'
  +'</div>';
 }
-function helpScreen(){return topBar()+'<div class="screen"><h1>Contact / Issues</h1><p class="muted">If you run into a bug or an accessibility issue, note the screen you were on and what happened, then reach the developer through the usual support channel for this game.</p><button class="secondary" data-p="home">Back</button></div>'}
+function helpScreen(){return topBar()+'<div class="screen"><h1>Contact / Issues</h1><p>To report a bug, note the screen, action, and error code. Contact details will be added when the developer confirms the public number.</p><button class="secondary" data-p="home">Back</button></div>'}
 
 function careerScreen(){
  let cur=levelData(player.level),nxt=nextLevelData(player.level);
@@ -697,7 +766,7 @@ function profileScreen(){
   ["Batting Avg",player.batAvg||0],["Bowling Avg",player.bowlAvg||0],["Duck Wickets",player.duckWickets],["Hat-Tricks",player.hatTricks],
   ["Player of Match",player.playerOfMatch],["Quits",player.quits],["Tournaments Won",player.tournamentsWon]];
  let cur=levelData(player.level);
- return topBar()+nav()+'<div class="screen"><h1>👤 Profile</h1>'
+ return topBar()+nav()+'<div class="screen"><h1>👤 Profile</h1><button data-p="editProfile">Edit Profile</button>'
  +'<div class="grid"><div class="card" style="display:flex;gap:14px;align-items:center">'+av+'<div><h3 style="margin:0">'+e(player.name)+'</h3><p class="muted" style="margin:4px 0">'+e(player.email||"Offline player")+'</p><span class="badge">'+e(cur.title)+'</span></div></div>'
  +'<div class="card"><h3>Wallet</h3><div class="stat">'+money(player.balance)+'</div><p class="muted">Next salary in '+(10-(player.matches%10))+' matches.</p></div></div>'
  +(hasMatches?('<div class="grid" style="margin-top:14px">'+statPairs.map(a=>'<div class="card"><span class="muted">'+a[0]+'</span><div class="stat" style="font-size:20px">'+a[1]+'</div></div>').join("")+'</div>')
@@ -711,6 +780,20 @@ function profileScreen(){
  +'<h2 style="margin-top:20px">Match History</h2><div class="log">'+(player.history.length?player.history.slice().reverse().slice(0,20).map(h=>'<div class="card" style="margin:8px 0"><b>'+e(h.result)+'</b> — '+h.runs+' runs, '+h.wickets+' wkts — Reward '+money(h.reward)+'<br><span class="muted">'+new Date(h.date).toLocaleString()+'</span></div>').join(""):"<p class='muted'>No matches yet.</p>")+'</div>'
  +'</div>';
 }
+function editProfileScreen(){
+ return topBar()+'<div class="screen"><h1>Edit Profile</h1><p>Your Google email and account ID cannot be changed here.</p>'
+ +'<form id="editProfileForm" class="form">'
+ +'<label>Name<input id="epName" value="'+e(player.name)+'" required></label>'
+ +'<label>Village or city<input id="epVillage" value="'+e(player.village)+'"></label>'
+ +'<label>State<input id="epState" value="'+e(player.state)+'"></label>'
+ +'<label>Age<input id="epAge" type="number" min="12" max="100" value="'+e(player.age||"")+'"></label>'
+ +'<label>Academy<input id="epAcademy" value="'+e(player.academy)+'"></label>'
+ +'<label>Family background<select id="epFamily">'+["Middle","Lower","Upper"].map(x=>'<option '+(player.familyBackground===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>'
+ +'<label>Blind category<select id="epCategory">'+["B1","B2","B3"].map(x=>'<option '+(player.blindCategory===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>'
+ +'<label>Role<select id="epRole">'+["Batsman","Bowler","Allrounder","Wicketkeeper"].map(x=>'<option '+(player.role===x?'selected':'')+'>'+x+'</option>').join('')+'</select></label>'
+ +'<button type="submit">Save Profile</button><button type="button" data-p="profile" class="secondary">Cancel</button></form>'
+ +(err?'<p role="alert">'+e(err)+'</p>':'')+'</div>';
+}
 function collectionGrid(){
  let owned=Object.entries(player.inventory);
  if(!owned.length)return '<p class="muted">Your collection is empty. Visit the Shop to buy your first item.</p>';
@@ -720,6 +803,7 @@ function collectionGrid(){
 function shopScreen(){
  let band=inflationBand(player.level);
  return topBar()+nav()+'<div class="screen"><h1>🛍️ Shop</h1><p>Wallet: <b>'+money(player.balance)+'</b>. Prices scale with your career level.</p>'
+ +'<p class="muted">Items are collectible in-game. Equipment stat bonuses are not implemented yet.</p>'
  +'<div class="grid">'+SHOP.map(i=>{
    let price=shopPrice(i.base,player.level);
    let owned=player.inventory[i.id];
@@ -780,11 +864,13 @@ function matchScreen(){
  let commentary='<div class="commentary" role="status" aria-live="polite"><b>Commentary</b><br>'+e(match.text)+(match.onStrikeNote?"<br>"+e(match.onStrikeNote):"")+'</div>';
  let controls;
  if(side==="player"){
-  controls='<h2>Choose Your Shot</h2><div class="shots">'
-   +'<button data-shot="defend">🛡️ Defend</button>'
+  controls='<h2>Choose Your Shot</h2><p>Choose 0 to 6 as your intended shot. Actual runs or wicket are random.</p><div class="shots">'
+   +'<button data-shot="zero" aria-label="Aim for 0 runs, defend">0 Runs</button>'
    +'<button data-shot="single">1 Run</button>'
    +'<button data-shot="double">2 Runs</button>'
+   +'<button data-shot="three">3 Runs</button>'
    +'<button data-shot="four">4 Runs</button>'
+   +'<button data-shot="five">5 Runs</button>'
    +'<button data-shot="six">6 Runs</button>'
    +'</div>';
  }else{
@@ -804,8 +890,10 @@ function quitMatch(){
  let pRuns=match.playerBatRuns,pWkts=match.playerBowlWickets;
  player.matches++;player.losses++;
  player.runs+=pRuns;player.wickets+=pWkts;
+ advanceOfflineTournament(false);
  player.history.push({date:Date.now(),result:"QUIT",runs:pRuns,wickets:pWkts,reward:0,mode:matchSetupState.mode});
- pushCloud();
+ saveMatchCheckpoint(true);
+ matchSaveQueue.then(()=>pushCloud());
  match.rewardBreakdown={reward:0,xpGain:0,newBalance:player.balance,newAchievements:[],leveledUp:null,salaryPaid:0,pRuns,pWkts,potm:false};
  announce("You quit the match. No reward earned.",true);
  render();
@@ -813,7 +901,7 @@ function quitMatch(){
 function resultPopup(){
  let r=match.rewardBreakdown||{};
  return '<div class="modal-back" role="dialog" aria-modal="true" aria-label="Match result"><div class="modal">'
- +(match.win?'<h2>🎉 CONGRATULATIONS! 🎉</h2><p>You won the match!</p>':'<h2>Match Complete</h2><p>You lost the match.</p>')
+ +(match.win?'<h2>🎉 CONGRATULATIONS! 🎉</h2><p>You won the match!</p>':player.history.at(-1)?.result==="QUIT"?'<h2>Match Quit</h2><p>You quit this match. No reward.</p>':'<h2>Match Complete</h2><p>You lost the match.</p>')
  +'<p>Runs: <b>'+r.pRuns+'</b> · Wickets: <b>'+r.pWkts+'</b></p>'
  +'<p>Match Reward: <b>'+money(r.reward)+'</b></p>'
  +'<p>XP Earned: <b>'+r.xpGain+' XP</b></p>'
@@ -821,6 +909,7 @@ function resultPopup(){
  +(r.newAchievements&&r.newAchievements.length?r.newAchievements.map(a=>'<p>Achievement Unlocked: <b>'+e(a.name)+'</b></p>').join(""):"")
  +(r.leveledUp?'<p>Level Up! You are now <b>'+e(r.leveledUp.title)+'</b>. Bonus '+money(r.leveledUp.unlockBonus)+' added.</p>':'')
  +(r.potm?'<p>🌟 Player of the Match!</p>':'')
+ +(matchSetupState.mode==="tournament"&&player.offlineTournament?.status==="won"?'<p>Offline tournament won. Prize included in balance.</p>':'')
  +'<p>New Balance: <b>'+money(r.newBalance)+'</b></p>'
  +'<button id="continueBtn" style="margin-top:10px;width:100%">Continue</button>'
  +'</div></div>';
@@ -851,9 +940,9 @@ function teamVsTeamScreen(){
  return topBar()+'<div class="screen"><h1>Team Vs Team</h1>'
  +'<div class="card"><h3>Your Team</h3><p>'+(player.teamName?e(player.teamName)+" ("+e(player.teamId)+")":"You have not created a team yet.")+'</p></div>'
  +'<div class="card" style="margin-top:14px"><h3>Opponent Team</h3><select id="oppTeam">'+oppNames.map(n=>'<option value="'+e(n)+'">'+e(n.replace(/_/g," "))+'</option>').join("")+'</select></div>'
- +'<div class="badge">11-player mode: automatically 10 wickets. Minimum 4 B1 players required in your squad.</div>'
- +'<div class="row" style="margin-top:14px"><button id="startTeamMatch" '+(player.teamId?"":"disabled")+'>Start Team Match</button><button class="secondary" data-p="home">Cancel</button></div>'
- +(player.teamId?"":'<p class="muted">Create a team first.</p>')
+ +'<div class="badge">11-player mode: automatically 10 wickets. Minimum 4 B1 players required in your squad. This is a simulated computer match; individual squad players do not take turns yet.</div>'
+ +'<div class="row" style="margin-top:14px"><button id="startTeamMatch" '+(player.teamId&&squadDraft.length===11&&squadDraft.filter(p=>p.cat==="B1").length>=4?"":"disabled")+'>Start Team Match Versus Computer</button><button class="secondary" data-p="home">Cancel</button></div>'
+ +(player.teamId?'<p class="muted">Add exactly 11 players, including four B1, in My Squad. Opponents here are computer teams.</p>':'<p class="muted">Create a team first.</p>')
  +'</div>';
 }
 function coachScreen(){
@@ -861,15 +950,17 @@ function coachScreen(){
  return topBar()+'<div class="screen"><h1>Coach Profile</h1>'
  +(c?('<div class="card"><b>'+e(c.name)+'</b><p>'+e(c.experience)+' yrs experience · '+e(c.village)+', '+e(c.state)+'</p><p>Academy: '+e(c.academy)+'</p><p>Family Background: '+e(c.familyBackground)+' · Category: '+e(c.blindCategory)+' · Role: '+e(c.role)+'</p><p>Teams Coached: '+(c.teamsCoached||0)+' · Win %: '+(c.winPct||0)+'% · Salary: '+money(c.salary||0)+'</p></div>')
   :'<form id="coachForm" class="form"><label>Coach Name<input id="cName" required></label><label>Experience (years)<input id="cExp" type="number" min="0"></label><label>Village<input id="cVillage"></label><label>State<input id="cState"></label><label>Academy<input id="cAcademy"></label><label>Family Background<select id="cFam"><option>Middle</option><option>Lower</option><option>Upper</option></select></label><label>Blind Category<select id="cCat"><option>B1</option><option>B2</option><option>B3</option></select></label><label>Role<select id="cRole"><option>Batsman</option><option>Bowler</option><option>Allrounder</option><option>Wicketkeeper</option></select></label><button type="submit">Save Coach Profile</button></form>')
+ +(c?'<button id="editCoach" type="button">Edit Coach Profile</button>':'')
  +'</div>';
 }
 function tournamentsScreen(){
  let tiers=[...new Set(TOURNAMENTS.map(t=>t.tier))];
- return topBar()+'<div class="screen"><h1>Tournaments</h1>'
+ return topBar()+'<div class="screen"><h1>Offline Tournaments Versus Computer</h1><p>Win three rounds. Lose or quit and this tournament ends. Prize is in-game money.</p>'
+ +(activeTournament()?'<div class="card" role="status"><h2>In progress: '+e(tournamentInfo()?.name||"Tournament")+'</h2><p>Round '+player.offlineTournament.round+' of '+player.offlineTournament.requiredWins+'; wins '+player.offlineTournament.wins+'.</p>'+(resumableMatch()&&player.matchCheckpoint.state.setup.mode==="tournament"?'<button id="resumeTourMatch">Resume current tournament match</button>':'<button id="nextTourRound">Set up next round</button>')+'</div>':'')
  +tiers.map(tier=>'<h2>'+e(tier)+'</h2><div class="grid">'+TOURNAMENTS.filter(t=>t.tier===tier).map(t=>{
    let unlocked=tournamentUnlocked(t,player);
    return '<div class="card"><b>'+(unlocked?"✅":"🔒")+' '+e(t.name)+'</b>'
-    +(unlocked?'<p>Prize: '+money(t.prize)+'</p><button data-enter="'+t.id+'" class="secondary">Enter</button>':'<p class="muted">Requires '+t.reqMatches+' matches and '+t.reqWins+' wins.</p>');
+    +(unlocked?'<p>Prize: '+money(t.prize)+' in-game money</p><button data-enter="'+t.id+'" class="secondary" '+(activeTournament()?'disabled':'')+'>Start offline tournament</button>':'<p class="muted">Requires '+t.reqMatches+' matches and '+t.reqWins+' wins.</p>');
  }).join("")+'</div>').join("")
  +'</div>';
 }
@@ -878,14 +969,16 @@ function ibplAuctionScreen(){
  let pool=[];
  Object.entries(SQUADS).forEach(([team,d])=>d.players.forEach(name=>pool.push(name)));
  pool=[...new Set(pool)].slice(0,40);
- return topBar()+'<div class="screen"><h1>IBPL Auction — Owner Mode</h1><p>Budget: <b>₹50,00,000</b> · Build an 11-player squad with a minimum of 4 B1 players.</p>'
- +'<div class="grid">'+pool.map(n=>'<div class="card"><b>'+e(n)+'</b><button class="secondary" data-auction="'+e(n)+'">Bid</button></div>').join("")+'</div>'
- +'<p class="muted">Blind-category tags (B1/B2/B3) shown for auction players are simulated for gameplay, since public squad data does not include real classification.</p>'
+ let a=auctionState();
+ return topBar()+'<div class="screen"><h1>Offline IBPL Auction - simulated</h1><p role="status">Budget remaining: '+money(a.budget)+'. Squad: '+a.players.length+'/11. Each player costs '+money(auctionPrice())+'. No live opponents or real payments.</p>'
+ +'<div class="grid">'+pool.map(n=>'<div class="card"><b>'+e(n)+'</b><button class="secondary" data-auction="'+e(n)+'" '+(a.players.includes(n)||a.players.length>=11||a.budget<auctionPrice()?"disabled":"")+'>Buy for '+money(auctionPrice())+'</button></div>').join("")+'</div>'
+ +'<h2>Purchased players</h2><ul>'+a.players.map(n=>'<li>'+e(n)+'</li>').join("")+'</ul>'
+ +'<p class="muted">This is a simulated auction. B1/B2/B3 categories are unknown for these historical players, so no blind-category eligibility is claimed.</p>'
  +'</div>';
 }
 function resumeScreen(){
  return topBar()+'<div class="screen"><h1>Resume</h1>'
- +(match&&!match.done?'<button data-p="match">Resume Current Match</button>':'<p class="muted">No match in progress.</p>')
+ +(resumableMatch()?'<button id="resumeFromMenu">Resume Saved Match</button>':'<p class="muted">No saved match to resume.</p>')
  +'</div>';
 }
 
@@ -927,17 +1020,19 @@ function render(){
  else if(page==="help")body=helpScreen();
  else if(page==="career")body=careerScreen();
  else if(page==="profile"||page==="mycollection")body=profileScreen();
+ else if(page==="editProfile")body=editProfileScreen();
  else if(page==="shop")body=shopScreen();
  else if(page==="settings")body=settingsScreen();
  else if(page==="matchSetup")body=matchSetupScreen();
- else if(page==="match")body=matchScreen();
+ else if(page==="match")body=match?matchScreen():homeHandCricket();
  else if(page==="teamCreate")body=teamCreateScreen();
  else if(page==="mySquad")body=mySquadScreen();
  else if(page==="teamVsTeam")body=teamVsTeamScreen();
  else if(page==="coach")body=coachScreen();
  else if(page==="tournaments")body=tournamentsScreen();
  else if(page==="ibplAuction")body=ibplAuctionScreen();
- else if(page==="resume"||page==="resumeTournament")body=resumeScreen();
+ else if(page==="resume")body=resumeScreen();
+ else if(page==="resumeTournament")body=tournamentsScreen();
  else if(page==="notifications")body=topBar()+'<div class="screen"><h1>Notifications</h1><p class="muted">No new notifications.</p></div>';
  else body=homeHandCricket();
  root.innerHTML='<div class="wrap"><main id="main">'+(msg?'<div class="notice">'+e(msg)+'</div>':'')+body+'</main></div>'+menuOverlay();
@@ -1000,8 +1095,20 @@ function bind(){
   if(id==="matchSetup"){matchSetupState.mode="cpu"}
   page=id;render();
  });
+ let rh=document.getElementById("resumeHome"),rm=document.getElementById("resumeFromMenu"),rt=document.getElementById("resumeTourMatch"),nt=document.getElementById("nextTourRound");
+ if(rh)rh.onclick=resumeMatch;if(rm)rm.onclick=resumeMatch;if(rt)rt.onclick=resumeMatch;
+ if(nt)nt.onclick=()=>{matchSetupState={...matchSetupState,mode:"tournament",toss:null};page="matchSetup";render()};
  let g=document.getElementById("google");if(g)g.onclick=google;
  let obf=document.getElementById("obf");if(obf)obf.onsubmit=saveOnboarding;
+ let ep=document.getElementById("editProfileForm");if(ep)ep.onsubmit=async(ev)=>{
+  ev.preventDefault();
+  player.name=document.getElementById("epName").value.trim();player.village=document.getElementById("epVillage").value.trim();
+  player.state=document.getElementById("epState").value.trim();player.age=+document.getElementById("epAge").value||null;
+  player.academy=document.getElementById("epAcademy").value.trim();player.familyBackground=document.getElementById("epFamily").value;
+  player.blindCategory=document.getElementById("epCategory").value;player.role=document.getElementById("epRole").value;
+  if(await pushCloud()){msg="Profile saved online.";page="profile";announce(msg,true)}else msg=err;
+  render();
+ };
  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buy(b.dataset.buy));
  let saveSet=document.getElementById("saveSet");
  if(saveSet)saveSet.onclick=async()=>{
@@ -1048,7 +1155,7 @@ function bind(){
   let team={teamId,name:document.getElementById("tName").value.trim(),captain:document.getElementById("tCaptain").value.trim(),state:tState,ground:document.getElementById("tGround").value.trim(),players:squadDraft,ownerUid:player.uid};
   player.teamId=teamId;player.teamName=team.name;
   saveTeamLocal(team);pushTeamCloud(team);pushCloud();
-  msg="Your team is ready! Your Team ID is "+teamId+". Give this to your coach.";
+  msg="Your offline team is ready. Team ID: "+teamId+". Online player invitations are not available yet.";
   announce(msg,true);render();
  };
  let ctid=document.getElementById("copyTeamId");if(ctid)ctid.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(player.teamId);msg="Team ID copied.";render()};
@@ -1056,18 +1163,22 @@ function bind(){
   ev.preventDefault();
   if(squadDraft.length>=11)return;
   squadDraft.push({name:document.getElementById("pName").value.trim(),cat:document.getElementById("pCat").value});
-  render();
+  player.squad=squadDraft;saveLocal();pushCloud();render();
  };
- document.querySelectorAll("[data-removeplayer]").forEach(b=>b.onclick=()=>{squadDraft.splice(+b.dataset.removeplayer,1);render()});
+ document.querySelectorAll("[data-removeplayer]").forEach(b=>b.onclick=()=>{squadDraft.splice(+b.dataset.removeplayer,1);player.squad=squadDraft;saveLocal();pushCloud();render()});
  let stm=document.getElementById("startTeamMatch");if(stm)stm.onclick=()=>{matchSetupState.mode="team";page="matchSetup";render()};
+ let ec=document.getElementById("editCoach");if(ec)ec.onclick=()=>{if(confirm("Edit coach profile?")){player.coach=null;page="coach";render()}};
  let cf=document.getElementById("coachForm");if(cf)cf.onsubmit=async(ev)=>{
   ev.preventDefault();
   player.coach={name:document.getElementById("cName").value.trim(),experience:document.getElementById("cExp").value||0,village:document.getElementById("cVillage").value.trim(),state:document.getElementById("cState").value.trim(),academy:document.getElementById("cAcademy").value.trim(),familyBackground:document.getElementById("cFam").value,blindCategory:document.getElementById("cCat").value,role:document.getElementById("cRole").value,teamsCoached:0,winPct:0,salary:0};
   if(await pushCloud()){msg="Coach profile saved online.";announce(msg,true)}else msg=err;
   render();
  };
- document.querySelectorAll("[data-enter]").forEach(b=>b.onclick=()=>{msg="Entered tournament: "+b.dataset.enter+". Fixtures will use your current match settings.";announce(msg,true);render()});
- document.querySelectorAll("[data-auction]").forEach(b=>b.onclick=()=>{msg=b.dataset.auction+" added to your auction shortlist.";announce(msg,true);render()});
+ document.querySelectorAll("[data-enter]").forEach(b=>b.onclick=()=>beginOfflineTournament(b.dataset.enter));
+ document.querySelectorAll("[data-auction]").forEach(b=>b.onclick=()=>{
+  let name=b.dataset.auction,a=auctionState();if(a.players.includes(name)||a.players.length>=11||a.budget<auctionPrice())return;
+  a.budget-=auctionPrice();a.players.push(name);saveLocal();pushCloud();msg=name+" bought for the simulated auction. Budget remaining "+money(a.budget)+".";announce(msg,true);render();
+ });
 }
 async function doLogout(){
  await signOut(auth);
