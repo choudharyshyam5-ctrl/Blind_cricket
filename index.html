@@ -720,7 +720,7 @@ async function recordFriendScore(id,score){const uid=auth.currentUser?.uid;if(!u
  announce("Friend challenge score submitted: "+score+" runs.",true);pendingFriendId=null;return true;
  }catch(x){announce("Friend score could not sync. Keep this match open and use Retry score submission.",true);console.error("friend score",x);return false}
 }
-function stopIncomingChallenges(){if(notificationsUnsubscribe)notificationsUnsubscribe();notificationsUnsubscribe=null;notificationUserId=null;notificationReady=false;notificationSeenIds=new Set();incomingNotifications=[]}
+function stopIncomingChallenges(){if(notificationsUnsubscribe)notificationsUnsubscribe();notificationsUnsubscribe=null;notificationUserId=null;notificationReady=false;incomingNotifications=[]}
 function pendingNotificationCount(){return incomingNotifications.filter(c=>c.toUid===auth.currentUser?.uid&&c.toScore==null).length}
 function updateNotificationButton(){
  const button=document.querySelector('[data-p="notifications"]');if(!button)return;
